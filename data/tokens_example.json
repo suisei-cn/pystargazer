@@ -1,0 +1,8 @@
+{
+  "youtube": [
+    "<API_TOKEN_1>",
+    "<API_TOKEN_N>"
+  ],
+  "twitter": "<USER_TOKEN>",
+  "youtube_callback": "<BASE_URL>"
+}

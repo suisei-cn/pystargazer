@@ -1,0 +1,9 @@
+version: "3"
+services:
+  stargazer:
+    build: ./stargazer
+    volumes:
+      - "./stargazer_data:/app/data"
+    ports:
+      - "5921:80"
+    restart: always

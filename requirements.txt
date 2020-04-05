@@ -1,0 +1,7 @@
+uvloop
+httpx
+starlette
+uvicorn
+apscheduler
+feedparser
+python-dateutil
