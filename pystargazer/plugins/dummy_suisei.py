@@ -1,23 +1,24 @@
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
-from pystargazer import route, on_startup, on_shutdown, scheduled, app
+from pystargazer.app import app
+from pystargazer.models import Event
 
 
-@on_startup
+@app.on_startup
 async def startup():
     print("Start")
 
 
-@on_shutdown
+@app.on_shutdown
 async def shutdown():
     print("Stop")
 
 
-@route("/")
+@app.route("/")
 async def hihihi(request: Request):
     return PlainTextResponse("噫hihihi")
 
 
-@scheduled("interval", seconds=3)
+@app.scheduled("interval", seconds=3)
 async def eeehihihi():
-    await app.send_event("eeehihihi")
+    await app.send_event(Event("eeehihihi"))

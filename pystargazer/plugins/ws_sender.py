@@ -1,11 +1,12 @@
 from starlette.endpoints import WebSocketEndpoint, WebSocket
-from pystargazer import dispatcher, ws_route
+from pystargazer.app import app
+from pystargazer.models import Event
 from typing import List
 
 ws_clients: List[WebSocket] = []
 
 
-@ws_route("/ws")
+@app.ws_route("/ws")
 class EventEndPoint(WebSocketEndpoint):
     async def on_connect(self, websocket: WebSocket) -> None:
         await super().on_connect(websocket)
@@ -16,7 +17,7 @@ class EventEndPoint(WebSocketEndpoint):
         ws_clients.remove(websocket)
 
 
-@dispatcher
-async def ws_send(event):
+@app.dispatcher
+async def ws_send(event: Event):
     for client in ws_clients:
-        await client.send_json(event)
+        await client.send_json(event.msg)

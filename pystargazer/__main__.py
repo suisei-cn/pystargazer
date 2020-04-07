@@ -3,8 +3,9 @@ import os
 from os import path
 
 from uvicorn.main import Config, Server
+from starlette.applications import Starlette
 
-from pystargazer import _app, _event_loop, _scheduler
+from pystargazer.app import app
 
 plugin_dir = path.join(path.dirname(path.abspath(__file__)), "plugins")
 plugins_path = [file[:-3] for file in os.listdir(plugin_dir) if file.endswith(".py")]
@@ -56,8 +57,12 @@ sched.add_job(partial(youtube_task, app))
 sched.start()
 '''
 
-_scheduler.start()
+app.scheduler.start()
+# noinspection PyProtectedMember
+app.starlette = Starlette(debug=os.environ.get("debug") == "true",
+                          routes=app._routes, on_startup=app._startup, on_shutdown=app._shutdown)
 
-config = Config(_app, host="0.0.0.0", port=8000, log_level="info", lifespan="on")
+config = Config(app.starlette, host="0.0.0.0", port=8000, log_level="info", lifespan="on")
 server = Server(config)
-_event_loop.run_until_complete(server.serve())
+# noinspection PyProtectedMember
+app._loop.run_until_complete(server.serve())
