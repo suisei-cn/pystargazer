@@ -1,7 +1,9 @@
-from starlette.endpoints import WebSocketEndpoint, WebSocket
+from typing import List
+
+from starlette.endpoints import WebSocket, WebSocketEndpoint
+
 from pystargazer.app import app
 from pystargazer.models import Event
-from typing import List
 
 ws_clients: List[WebSocket] = []
 

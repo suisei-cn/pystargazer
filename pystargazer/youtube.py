@@ -1,5 +1,4 @@
 import datetime
-import re
 from asyncio import Queue
 from enum import Enum
 from functools import partial

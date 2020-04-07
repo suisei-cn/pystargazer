@@ -5,3 +5,4 @@ uvicorn
 apscheduler
 feedparser
 python-dateutil
+motor

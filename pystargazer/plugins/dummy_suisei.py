@@ -1,5 +1,6 @@
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
+
 from pystargazer.app import app
 from pystargazer.models import Event
 

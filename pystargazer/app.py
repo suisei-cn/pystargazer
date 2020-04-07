@@ -1,11 +1,13 @@
-from asyncio import AbstractEventLoop
 import asyncio
 import traceback
+from asyncio import AbstractEventLoop
+from typing import Awaitable, Callable, List, Optional
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.applications import Starlette
 from starlette.routing import Route, WebSocketRoute
-from typing import Optional, List, Awaitable, Callable
-from .models import Event
+
+from .models import AbstractKVContainer, Credential, Event
 
 T_Life = Callable[[None], Awaitable[None]]
 T_Dispatcher = Callable[[Event], Awaitable[None]]
@@ -27,15 +29,38 @@ class App:
         # job scheduler
         self.scheduler: AsyncIOScheduler = AsyncIOScheduler(event_loop=self._loop)
 
+        # storage
+        self.credentials: Credential = Credential("data/tokens.json")
+        self._vtubers: Optional[AbstractKVContainer] = None
+        self._configs: Optional[AbstractKVContainer] = None
+        self._states: Optional[AbstractKVContainer] = None
+
         # starlette object
-        self.starlette: Optional[Starlette] = None
+        self._starlette: Optional[Starlette] = None
 
-        # Starlette(debug=True, routes=[], on_startup=[_lifespan(_startup)], on_shutdown=[_lifespan(_shutdown)])
-
-    def get_starlette(self) -> Starlette:
-        if not self.starlette:
+    @property
+    def starlette(self) -> Starlette:
+        if not self._starlette:
             raise RuntimeError("Starlette object hasn't been initialized.")
-        return self.starlette
+        return self._starlette
+
+    @property
+    def vtubers(self) -> AbstractKVContainer:
+        if not self._vtubers:
+            raise RuntimeError("Vtubers storage hasn't been initialized.")
+        return self._vtubers
+
+    @property
+    def configs(self) -> AbstractKVContainer:
+        if not self._configs:
+            raise RuntimeError("Configs storage hasn't been initialized.")
+        return self._configs
+
+    @property
+    def plugin_state(self) -> AbstractKVContainer:
+        if not self._states:
+            raise RuntimeError("Plugin state hasn't been initialized.")
+        return self._states
 
     async def send_event(self, event: Event):
         for _dispatcher in self._dispatchers:
