@@ -4,5 +4,5 @@
     "<API_TOKEN_N>"
   ],
   "twitter": "<USER_TOKEN>",
-  "youtube_callback": "<BASE_URL>"
+  "base_url": "<BASE_URL>"
 }
