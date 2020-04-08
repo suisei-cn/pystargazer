@@ -47,5 +47,6 @@ class KVContainer(AbstractKVContainer):
 # noinspection PyUnresolvedReferences,PyProtectedMember
 @app.on_startup
 async def init_storage():
-    await app.vtubers._init()
-    await app.configs._init()
+    for obj in app.__dict__.values():
+        if isinstance(obj, KVContainer):
+            await obj._init()
