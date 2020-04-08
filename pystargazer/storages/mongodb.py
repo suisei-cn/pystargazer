@@ -34,7 +34,7 @@ class KVContainer(AbstractKVContainer):
         return KVPair.load(doc) if doc else None
 
     async def has_field(self, field: str) -> AsyncGenerator[KVPair, None]:
-        async for doc in self.collections.find({"key": {"$exists": True}}):
+        async for doc in self.collections.find({field: {"$exists": True}}):
             yield KVPair.load(doc)
 
     async def put(self, obj: KVPair):
