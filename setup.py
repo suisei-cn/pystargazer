@@ -7,7 +7,7 @@ setup(
         version='0.2.0',
         description='A flexible vtuber tracker.',
         author='LightQuantum',
-        author_email='cy.n01@outlook.com'
+        author_email='cy.n01@outlook.com',
         url='https://github.com/suisei-cn/pystargazer',
         packages=find_packages(),
         classifiers=[
@@ -28,8 +28,8 @@ setup(
             'feedparser',
             'python-dateutil'
         ],
-        extras_require=[
-            'motor'
-        ],
+        extras_require={
+            'mongo': ['motor']
+        },
         python_requires='>=3.8'
 )
