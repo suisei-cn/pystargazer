@@ -6,3 +6,4 @@ apscheduler
 feedparser
 python-dateutil
 motor
+tinydb

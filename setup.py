@@ -29,7 +29,8 @@ setup(
             'python-dateutil'
         ],
         extras_require={
-            'mongo': ['motor']
+            'mongo': ['motor'],
+            'files': ['tinydb']
         },
         python_requires='>=3.8'
 )
