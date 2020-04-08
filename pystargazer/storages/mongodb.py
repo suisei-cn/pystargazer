@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional, Tuple
 from urllib.parse import urlparse
 
 import motor.motor_asyncio
@@ -8,9 +8,11 @@ from pystargazer.app import app
 from pystargazer.models import AbstractKVContainer, KVPair
 
 
-class KVContainer(AbstractKVContainer):
-    async def delete(self, obj: KVPair):
-        await self.collections.delete_many({"key": obj.key})
+class MongoKVContainer(AbstractKVContainer):
+    async def delete(self, obj: KVPair) -> KVPair:
+        # TODO inconsistent behavior: won't return pop object like FileKVContainer
+        await self.collections.delete_one({"key": obj.key})
+        return obj
 
     async def iter(self) -> AsyncGenerator[KVPair, None]:
         async for doc in self.collections.find():
@@ -37,11 +39,13 @@ class KVContainer(AbstractKVContainer):
         async for doc in self.collections.find({field: {"$exists": True}}):
             yield KVPair.load(doc)
 
-    async def put(self, obj: KVPair):
+    async def put(self, obj: KVPair) -> Tuple[Optional[KVPair], KVPair]:
         if old_doc := (await self.collections.find_one({"key": obj.key})):
             await self.collections.replace_one({"_id": old_doc["_id"]}, obj.dump())
+            return KVPair.load(old_doc), obj
         else:
             await self.collections.insert_one(obj.dump())
+            return None, obj
 
 
 # noinspection PyUnresolvedReferences,PyProtectedMember
@@ -50,3 +54,7 @@ async def init_storage():
     for obj in app.__dict__.values():
         if isinstance(obj, KVContainer):
             await obj._init()
+
+
+def get_container():
+    return MongoKVContainer

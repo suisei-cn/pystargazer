@@ -1,4 +1,4 @@
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional, Tuple
 from urllib.parse import urlparse
 
 from tinydb import TinyDB, where
@@ -7,9 +7,11 @@ from tinydb.database import Document
 from pystargazer.models import AbstractKVContainer, KVPair
 
 
-class KVContainer(AbstractKVContainer):
-    async def delete(self, obj: KVPair):
-        self.table.remove(where("key") == obj.key)
+class FileKVContainer(AbstractKVContainer):
+    async def delete(self, obj: KVPair) -> KVPair:
+        doc: Document = self.table.search(where("key") == obj.key)[0]
+        self.table.remove(doc_id=doc.doc_id)
+        return KVPair.load(doc)
 
     async def iter(self) -> AsyncGenerator[KVPair, None]:
         for doc in self.table.all():
@@ -28,15 +30,23 @@ class KVContainer(AbstractKVContainer):
         self.table = self.db.table(table)
 
     async def get(self, key: str) -> KVPair:
-        doc: dict = self.table.search(where("key") == key)[0]
-        return KVPair.load(doc) if doc else None
+        docs: dict = self.table.search(where("key") == key)
+        return KVPair.load(docs[0]) if docs else None
 
     async def has_field(self, field: str) -> AsyncGenerator[KVPair, None]:
         for doc in self.table.search(where(field).exists()):
             yield KVPair.load(doc)
 
-    async def put(self, obj: KVPair):
-        if old_doc := self.table.search(where("key") == obj.key)[0]:
-            self.table.write_back([Document(obj.dump(), old_doc.doc_id)])
+    async def put(self, obj: KVPair) -> Tuple[Optional[KVPair], KVPair]:
+        if old_docs := self.table.search(where("key") == obj.key):
+            old_doc = old_docs[0]
+            doc = Document(obj.dump(), old_doc.doc_id)
+            self.table.write_back([doc])
+            return KVPair.load(old_doc), obj
         else:
             self.table.insert(obj.dump())
+            return None, obj
+
+
+def get_container():
+    return FileKVContainer

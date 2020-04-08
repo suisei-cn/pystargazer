@@ -1,36 +1,21 @@
 import importlib
 import os
 from os import path
-from urllib.parse import urlparse
 
 from starlette.applications import Starlette
 from uvicorn.main import Config, Server
 
-from pystargazer.app import app
+from .app import app
+from .models import KVContainer
 
 plugin_dir = path.join(path.dirname(path.abspath(__file__)), "plugins")
 plugins_path = [file[:-3] for file in os.listdir(plugin_dir) if file.endswith(".py")]
 plugins = {plugin.__name__: plugin for plugin in
            [importlib.import_module(f"pystargazer.plugins.{plugin_path}") for plugin_path in plugins_path]}
 
-storages = {}
-
-
-def get_kv_container(url: str):
-    parsed_url = urlparse(url)
-    scheme = parsed_url.scheme
-    if storage := storages.get(scheme):
-        return storage(url)
-    else:
-        module = importlib.import_module(f"pystargazer.storages.{scheme}")
-        container = module.KVContainer
-        storages[scheme] = container
-        return container(url)
-
-
-app._vtubers = get_kv_container(app.credentials.get("vtubers_storage"))
-app._configs = get_kv_container(app.credentials.get("configs_storage"))
-app._states = get_kv_container(app.credentials.get("plugins_storage"))
+app._vtubers = KVContainer(app.credentials.get("vtubers_storage"), "vtubers")
+app._configs = KVContainer(app.credentials.get("configs_storage"), "configs")
+app._states = KVContainer(app.credentials.get("plugins_storage"), "states")
 
 '''
 credential = Credential("./data/tokens.json")

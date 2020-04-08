@@ -1,8 +1,12 @@
+import importlib
 import json
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Dict
+from typing import Any, AsyncGenerator, Dict, Optional, Tuple
+from urllib.parse import urlparse
+
+from .utils import compare_dict
 
 
 @dataclass
@@ -37,7 +41,7 @@ class AbstractKVContainer(ABC):
         return NotImplemented
 
     @abstractmethod
-    async def put(self, obj: KVPair):
+    async def put(self, obj: KVPair) -> Tuple[Optional[KVPair], KVPair]:
         return NotImplemented
 
     @abstractmethod
@@ -45,7 +49,7 @@ class AbstractKVContainer(ABC):
         return NotImplemented
 
     @abstractmethod
-    async def delete(self, obj: KVPair):
+    async def delete(self, obj: KVPair) -> KVPair:
         return NotImplemented
 
 
@@ -77,3 +81,52 @@ class Credential:
         json.dump(self._tokens, self.f, ensure_ascii=False)
         self.f.truncate()
         self.f.flush()
+
+
+storages = {}
+
+
+class KVContainer:
+    @staticmethod
+    def _get_kv_container(url: str):
+        parsed_url = urlparse(url)
+        scheme = parsed_url.scheme
+        if storage := storages.get(scheme):
+            return storage(url)
+        else:
+            module = importlib.import_module(f"pystargazer.storages.{scheme}")
+            container = module.get_container()
+            storages[scheme] = container
+            return container(url)
+
+    def __init__(self, url, container_name):
+        self.name = container_name
+        self.container: AbstractKVContainer = self._get_kv_container(url)
+
+    async def get(self, key: str, default: Any = None) -> KVPair:
+        return rtn if (rtn := await self.container.get(key)) is not None else default
+
+    def has_field(self, field: str) -> AsyncGenerator[KVPair, None]:
+        # noinspection PyTypeChecker
+        return self.container.has_field(field)
+
+    async def put(self, obj: KVPair) -> Tuple[Optional[KVPair], KVPair]:
+        old_obj, new_obj = await self.container.put(obj)
+        if old_obj:
+            added, removed, updated = compare_dict(old_obj.value, new_obj.value)
+            await app.app.hook_update(self.name, new_obj, added, removed, updated)
+        else:
+            await app.app.hook_create(self.name, new_obj)
+        return old_obj, new_obj
+
+    def iter(self) -> AsyncGenerator[KVPair, None]:
+        # noinspection PyTypeChecker
+        return self.container.iter()
+
+    async def delete(self, obj: KVPair) -> KVPair:
+        obj = await self.delete(obj)
+        await app.app.hook_delete(self.name, obj)
+        return obj
+
+
+import pystargazer.app as app
