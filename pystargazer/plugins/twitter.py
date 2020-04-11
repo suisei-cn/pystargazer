@@ -65,5 +65,11 @@ async def twitter_task():
     t_since.value.update(since)
     await app.plugin_state.put(t_since)
 
-    await asyncio.gather(*(app.send_event(Event(f"<Name={name} Text={tweet[1][0]} Images={tweet[1][1]}"))
-                           for name, tweet in valid_tweets.items()))
+    events = (
+        Event(
+            "tweet",
+            name,
+            {"text": tweet[1][0], "images": tweet[1][1]}
+        )
+        for name, tweet in valid_tweets.items())
+    await asyncio.gather(*(app.send_event(event) for event in events))

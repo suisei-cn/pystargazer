@@ -22,4 +22,4 @@ class EventEndPoint(WebSocketEndpoint):
 @app.dispatcher
 async def ws_send(event: Event):
     for client in ws_clients:
-        await client.send_json(event.msg)
+        await client.send_json(event.to_json())

@@ -11,7 +11,16 @@ from .utils import compare_dict
 
 @dataclass
 class Event:
-    msg: str
+    type: str
+    vtuber: str
+    data: dict
+
+    def to_json(self):
+        return {
+            "type": self.type,
+            "vtuber": self.vtuber,
+            "data": self.data,
+        }
 
 
 @dataclass
