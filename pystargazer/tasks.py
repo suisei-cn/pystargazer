@@ -87,7 +87,7 @@ async def youtube_task(app: Starlette):
     print("start to subscribe")
     await asyncio.gather(*(youtube.subscribe(channel_id) for channel_id in channel_ids))
 
-    print("start to listen events")
+    print("start to listen to events")
     async for event in youtube.event():
         print("event received", event)
         try:

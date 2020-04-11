@@ -11,6 +11,7 @@ from .utils import compare_dict
 
 @dataclass
 class Event:
+    __slots__ = ["type", "vtuber", "data"]
     type: str
     vtuber: str
     data: dict
@@ -25,6 +26,7 @@ class Event:
 
 @dataclass
 class KVPair:
+    __slots__ = ["key", "value"]
     key: str
     value: Dict[str, Any]
 
