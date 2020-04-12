@@ -4,15 +4,15 @@ MAINTAINER LightQuantum
 
 WORKDIR /app
 
-COPY LICENSE ./
-
 RUN pip install --upgrade pip
 
-COPY pystargazer ./pystargazer
+COPY LICENSE ./
 
 COPY README.md setup.py ./
 
-RUN pip install .
+COPY pystargazer ./pystargazer
+
+RUN pip install ".[files,mongo]"
 
 ENV PYTHONUNBUFFERED=1
 
