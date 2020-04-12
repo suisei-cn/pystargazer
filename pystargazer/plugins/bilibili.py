@@ -44,7 +44,7 @@ class Bilibili:
 bilibili = Bilibili()
 
 
-def get_option(key: str):
+async def get_option(key: str):
     if (my_config := await app.configs.get("bilibili")) is not None:
         if my_config.value.get(key) == "true":
             return True
@@ -68,7 +68,7 @@ async def bilibili_setup():
 
 @app.scheduled("interval", seconds=10)
 async def bilibili_task():
-    if get_option("disabled"):
+    if await get_option("disabled"):
         return
 
     b_since: KVPair = await app.plugin_state.get("bilibili_since")

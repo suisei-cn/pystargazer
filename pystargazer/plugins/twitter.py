@@ -42,7 +42,7 @@ class Twitter:
 twitter = Twitter(app.credentials.get("twitter"))
 
 
-def get_option(key: str):
+async def get_option(key: str):
     if (my_config := await app.configs.get("twitter")) is not None:
         if my_config.value.get(key) == "true":
             return True
@@ -64,9 +64,9 @@ async def twitter_startup():
         await app.plugin_state.put(KVPair("twitter_since", {}))
 
 
-@app.scheduled("interval", seconds=10)
+@app.scheduled("interval", minutes=1)
 async def twitter_task():
-    if get_option("disabled"):
+    if await get_option("disabled"):
         return
 
     t_since: KVPair = await app.plugin_state.get("twitter_since")

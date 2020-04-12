@@ -68,7 +68,7 @@ scheduler = app.scheduler
 http = AsyncClient()
 
 
-def get_option(key: str):
+async def get_option(key: str):
     if (my_config := await app.configs.get("youtube")) is not None:
         if my_config.value.get(key) == "true":
             return True
@@ -109,7 +109,7 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
     video = ytb_event.video
 
     event: Optional[Event] = None
-    if ytb_event.type == ResourceType.VIDEO and not get_option("video_disabled"):
+    if ytb_event.type == ResourceType.VIDEO and not await get_option("video_disabled"):
         event = Event("youtube_video", vtuber.key, {
             "title": video.title,
             "description": video.description,
@@ -117,7 +117,7 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
         })
     elif ytb_event.type == ResourceType.BROADCAST:
         scheduled_start_time_print = video.scheduled_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")
-        if ytb_event.event == YoutubeEventType.LIVE and not get_option("live_disabled"):
+        if ytb_event.event == YoutubeEventType.LIVE and not await get_option("live_disabled"):
             actual_start_time_print = video.actual_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")
             event = Event("youtube_broadcast_live", vtuber.key, {
                 "title": video.title,
@@ -126,14 +126,14 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
                 "scheduled_start_time": scheduled_start_time_print,
                 "actual_start_time": actual_start_time_print
             })
-        elif ytb_event.event == YoutubeEventType.REMINDER and not get_option("reminder_disabled"):
+        elif ytb_event.event == YoutubeEventType.REMINDER and not await get_option("reminder_disabled"):
             event = Event("youtube_broadcast_reminder", vtuber.key, {
                 "title": video.title,
                 "description": video.description,
                 "link": video.link,
                 "scheduled_start_time": scheduled_start_time_print,
             })
-        elif ytb_event.event == YoutubeEventType.SCHEDULE and not get_option("schedule_disabled"):
+        elif ytb_event.event == YoutubeEventType.SCHEDULE and not await get_option("schedule_disabled"):
             event = Event("youtube_broadcast_schedule", vtuber.key, {
                 "title": video.title,
                 "description": video.description,
