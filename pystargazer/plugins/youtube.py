@@ -63,8 +63,16 @@ class YoutubeEvent:
 token_g: Iterator[str] = cycle(app.credentials.get("youtube"))
 callback_url: str = app.credentials.get("base_url")
 channel_list: Dict[str, List[Video]] = {}
+read_list: List[Video] = []
 scheduler = app.scheduler
 http = AsyncClient()
+
+
+def get_option(key: str):
+    if (my_config := await app.configs.get("youtube")) is not None:
+        if my_config.value.get(key) == "true":
+            return True
+    return False
 
 
 @app.on_startup
@@ -77,6 +85,15 @@ async def init_subscribe():
     print("start to subscribe")
     await asyncio.gather(*(subscribe(channel_id) for channel_id in channel_ids))
     print("subscribe finished")
+
+
+@app.route("/help/youtube", methods=["GET"])
+async def youtube_help(request: Request):
+    return PlainTextResponse(
+        "Field: youtube\n"
+        "Configs[/configs/youtube]:\n"
+        "  video_disabled live_disabled reminder_disabled schedule_disabled"
+    )
 
 
 async def get_vtuber(channel_id: str) -> KVPair:
@@ -92,31 +109,35 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
     video = ytb_event.video
 
     event: Optional[Event] = None
-    if ytb_event.type == ResourceType.VIDEO:
+    if ytb_event.type == ResourceType.VIDEO and not get_option("video_disabled"):
         event = Event("youtube_video", vtuber.key, {
             "title": video.title,
-            "description": video.description
+            "description": video.description,
+            "link": video.link
         })
     elif ytb_event.type == ResourceType.BROADCAST:
         scheduled_start_time_print = video.scheduled_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")
-        if ytb_event.event == YoutubeEventType.LIVE:
+        if ytb_event.event == YoutubeEventType.LIVE and not get_option("live_disabled"):
             actual_start_time_print = video.actual_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")
             event = Event("youtube_broadcast_live", vtuber.key, {
-                "title": ytb_event.video.title,
-                "description": ytb_event.video.description,
+                "title": video.title,
+                "description": video.description,
+                "link": video.link,
                 "scheduled_start_time": scheduled_start_time_print,
                 "actual_start_time": actual_start_time_print
             })
-        elif ytb_event.event == YoutubeEventType.REMINDER:
+        elif ytb_event.event == YoutubeEventType.REMINDER and not get_option("reminder_disabled"):
             event = Event("youtube_broadcast_reminder", vtuber.key, {
-                "title": ytb_event.video.title,
-                "description": ytb_event.video.description,
+                "title": video.title,
+                "description": video.description,
+                "link": video.link,
                 "scheduled_start_time": scheduled_start_time_print,
             })
-        elif ytb_event.event == YoutubeEventType.SCHEDULE:
+        elif ytb_event.event == YoutubeEventType.SCHEDULE and not get_option("schedule_disabled"):
             event = Event("youtube_broadcast_schedule", vtuber.key, {
-                "title": ytb_event.video.title,
-                "description": ytb_event.video.description,
+                "title": video.title,
+                "description": video.description,
+                "link": video.link,
                 "scheduled_start_time": scheduled_start_time_print,
             })
     if event:

@@ -2,6 +2,8 @@ import asyncio
 import json
 
 from httpx import AsyncClient
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 
 from pystargazer.app import app
 from pystargazer.models import Event, KVPair
@@ -42,6 +44,22 @@ class Bilibili:
 bilibili = Bilibili()
 
 
+def get_option(key: str):
+    if (my_config := await app.configs.get("bilibili")) is not None:
+        if my_config.value.get(key) == "true":
+            return True
+    return False
+
+
+@app.route("/help/bilibili", methods=["GET"])
+async def youtube_help(request: Request):
+    return PlainTextResponse(
+        "Field: bilibili\n"
+        "Configs[/configs/bilibili]:\n"
+        "  disabled"
+    )
+
+
 @app.on_startup
 async def bilibili_setup():
     if await app.plugin_state.get("bilibili_since") is None:
@@ -50,6 +68,9 @@ async def bilibili_setup():
 
 @app.scheduled("interval", seconds=10)
 async def bilibili_task():
+    if get_option("disabled"):
+        return
+
     b_since: KVPair = await app.plugin_state.get("bilibili_since")
 
     b_valid_ids = []
@@ -73,5 +94,7 @@ async def bilibili_task():
             name,
             {"text": dyn[1][0], "images": dyn[1][1]}
         )
-        for name, dyn in valid_dyns.items())
+        for name, dyn in valid_dyns.items()
+        if dyn[1][0] == "分享图片"
+    )
     await asyncio.gather(*(app.send_event(event) for event in events))

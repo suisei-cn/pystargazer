@@ -40,4 +40,4 @@ async def eeehihihi():
     if (my_config := await app.configs.get("dummy_suisei")) is not None:
         if my_config.value.get("disabled") == "true":
             return
-    await app.send_event(Event("eeehihihi"))
+    await app.send_event(Event("dummy_suisei", "suisei", {}))

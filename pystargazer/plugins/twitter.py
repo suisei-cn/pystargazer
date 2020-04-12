@@ -1,6 +1,8 @@
 import asyncio
 
 from httpx import AsyncClient, Headers
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 
 from pystargazer.app import app
 from pystargazer.models import Event, KVPair
@@ -40,6 +42,22 @@ class Twitter:
 twitter = Twitter(app.credentials.get("twitter"))
 
 
+def get_option(key: str):
+    if (my_config := await app.configs.get("twitter")) is not None:
+        if my_config.value.get(key) == "true":
+            return True
+    return False
+
+
+@app.route("/help/twitter", methods=["GET"])
+async def youtube_help(request: Request):
+    return PlainTextResponse(
+        "Field: twitter\n"
+        "Configs[/configs/twitter]:\n"
+        "  disabled"
+    )
+
+
 @app.on_startup
 async def twitter_startup():
     if await app.plugin_state.get("twitter_since") is None:
@@ -48,6 +66,9 @@ async def twitter_startup():
 
 @app.scheduled("interval", seconds=10)
 async def twitter_task():
+    if get_option("disabled"):
+        return
+
     t_since: KVPair = await app.plugin_state.get("twitter_since")
 
     t_valid_ids = []
