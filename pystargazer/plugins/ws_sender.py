@@ -58,4 +58,4 @@ async def ws_send(event: Event):
         ])
     if msg.get("title"):
         for client in ws_clients:
-            await client.send_json(event.to_json())
+            await client.send_json(msg)
