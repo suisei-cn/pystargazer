@@ -6,11 +6,13 @@ WORKDIR /app
 
 RUN pip install --upgrade pip
 
-COPY ./requirements.txt ./requirements.txt
+COPY LICENSE ./
 
-RUN pip install -r requirements.txt
+COPY README.md setup.py ./
 
 COPY pystargazer ./pystargazer
+
+RUN pip install ".[files,mongo]"
 
 ENV PYTHONUNBUFFERED=1
 

@@ -1,32 +1,30 @@
-import asyncio
-from functools import partial
+import importlib
+import os
+from os import path
 
-import uvloop
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.applications import Starlette
-from starlette.routing import Mount, Route, WebSocketRoute
 from uvicorn.main import Config, Server
 
-from .bilibili import Bilibili
-from .endpoints import EventEndPoint, on_create, on_delete, on_delete_key, on_iter, on_put_key, on_query, on_query_key
-from .state import FileDict
-from .tasks import bilibili_task, on_ping, twitter_task, youtube_task
-from .tokens import Credential
-from .twitter import Twitter
-from .youtube import Youtube
+from .app import app
+from .models import KVContainer
 
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-event_loop = asyncio.new_event_loop()
-asyncio.set_event_loop(event_loop)
-event_loop.set_debug(True)
+plugin_dir = path.join(path.dirname(path.abspath(__file__)), "plugins")
+plugins_path = [file[:-3] for file in os.listdir(plugin_dir) if file.endswith(".py")]
+plugins = {plugin.__name__: plugin for plugin in
+           [importlib.import_module(f"pystargazer.plugins.{plugin_path}") for plugin_path in plugins_path]}
 
-sched = AsyncIOScheduler(event_loop=event_loop)
+app._vtubers = KVContainer(app.credentials.get("vtubers_storage"), "vtubers")
+app._configs = KVContainer(app.credentials.get("configs_storage"), "configs")
+app._states = KVContainer(app.credentials.get("plugins_storage"), "states")
 
+'''
 credential = Credential("./data/tokens.json")
 twitter = Twitter(credential.twitter_token)
 youtube = Youtube(credential.youtube_tokens, credential.youtube_callback, sched)
 bilibili = Bilibili()
+'''
 
+'''
 routes = [
     WebSocketRoute("/event", EventEndPoint),
     Mount('/vtubers', routes=[
@@ -47,7 +45,6 @@ async def shutdown():
     pass
 
 
-app = Starlette(debug=True, routes=routes, on_shutdown=[shutdown])
 
 app.state.ws_clients = []
 app.state.vtubers = FileDict("./data/vtubers.json")
@@ -63,7 +60,15 @@ sched.add_job(partial(twitter_task, app), 'interval', minutes=1)
 sched.add_job(partial(bilibili_task, app), 'interval', minutes=1)
 sched.add_job(partial(youtube_task, app))
 sched.start()
+'''
 
-config = Config(app, host="0.0.0.0", port=80, log_level="info", lifespan="on")
+app.scheduler.start()
+# noinspection PyProtectedMember
+debug = os.environ.get("debug") == "true"
+app._starlette = Starlette(debug=debug,
+                           routes=app._routes, on_startup=app._startup, on_shutdown=app._shutdown)
+
+config = Config(app.starlette, host="0.0.0.0", port=8000 if debug else 80, log_level="info", lifespan="on")
 server = Server(config)
-event_loop.run_until_complete(server.serve())
+# noinspection PyProtectedMember
+app._loop.run_until_complete(server.serve())
