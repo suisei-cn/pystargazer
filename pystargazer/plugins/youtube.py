@@ -114,6 +114,7 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
         event = Event("youtube_video", vtuber.key, {
             "title": video.title,
             "description": video.description,
+            "images": [video.thumbnail],
             "link": video.link
         })
     elif ytb_event.type == ResourceType.BROADCAST:

@@ -21,7 +21,7 @@ class EventEndPoint(WebSocketEndpoint):
 
 @app.dispatcher
 async def ws_send(event: Event):
-    msg: dict = {"name": event.vtuber, "images": event.data.get("images")}
+    msg: dict = {"name": event.vtuber, "images": event.data.get("images", [])}
     print("ws event:", event.to_json())
     if event.type == "tweet":
         msg["title"] = "Twitter 推文"
