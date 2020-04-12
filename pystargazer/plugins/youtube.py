@@ -11,8 +11,7 @@ import dateutil.parser
 import feedparser
 from apscheduler.schedulers.base import JobLookupError
 from dateutil import tz
-from httpx import AsyncClient
-from httpx import NetworkError
+from httpx import AsyncClient, NetworkError, TimeoutException
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
@@ -154,7 +153,7 @@ async def query_video(video: Video) -> bool:
                 "id": video.video_id
             })
             break
-        except NetworkError:
+        except (NetworkError, TimeoutException):
             pass
 
     if not (data := r.json()):
@@ -197,7 +196,7 @@ async def _subscribe(channel_id: str, reverse: bool = False):
                 "hub.lease_seconds": 86400
             })
             break
-        except NetworkError:
+        except (NetworkError, TimeoutException):
             pass
 
 
