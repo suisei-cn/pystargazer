@@ -81,6 +81,7 @@ async def init_subscribe():
     async for vtuber in app.vtubers.has_field("youtube"):
         channel_ids.append(vtuber.value["youtube"])
 
+    print("channel_ids:", channel_ids)
     print("start to subscribe")
     await asyncio.gather(*(subscribe(channel_id) for channel_id in channel_ids))
     print("subscribe finished")

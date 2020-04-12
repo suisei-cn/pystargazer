@@ -64,10 +64,11 @@ sched.start()
 
 app.scheduler.start()
 # noinspection PyProtectedMember
-app._starlette = Starlette(debug=os.environ.get("debug") == "true",
+debug = os.environ.get("debug") == "true"
+app._starlette = Starlette(debug=debug,
                            routes=app._routes, on_startup=app._startup, on_shutdown=app._shutdown)
 
-config = Config(app.starlette, host="0.0.0.0", port=8000, log_level="info", lifespan="on")
+config = Config(app.starlette, host="0.0.0.0", port=8000 if debug else 80, log_level="info", lifespan="on")
 server = Server(config)
 # noinspection PyProtectedMember
 app._loop.run_until_complete(server.serve())

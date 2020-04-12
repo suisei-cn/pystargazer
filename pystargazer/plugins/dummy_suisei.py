@@ -35,7 +35,7 @@ async def hihihi(request: Request):
     return PlainTextResponse("噫hihihi")
 
 
-@app.scheduled("interval", seconds=3)
+@app.scheduled("interval", hours=3)
 async def eeehihihi():
     if (my_config := await app.configs.get("dummy_suisei")) is not None:
         if my_config.value.get("disabled") == "true":

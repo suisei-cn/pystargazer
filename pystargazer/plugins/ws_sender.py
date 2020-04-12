@@ -22,6 +22,7 @@ class EventEndPoint(WebSocketEndpoint):
 @app.dispatcher
 async def ws_send(event: Event):
     msg: dict = {"name": event.vtuber, "images": event.data.get("images")}
+    print("ws event:", event.to_json())
     if event.type == "tweet":
         msg["title"] = "Twitter 推文"
         msg["text"] = event.data["text"]
@@ -56,6 +57,7 @@ async def ws_send(event: Event):
             f"预定时间：{event.data['scheduled_start_time']}",
             f"链接：{event.data['link']}"
         ])
+    print("ws constructed:", msg)
     if msg.get("title"):
         for client in ws_clients:
             await client.send_json(msg)

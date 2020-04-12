@@ -66,7 +66,7 @@ async def bilibili_setup():
         await app.plugin_state.put(KVPair("bilibili_since", {}))
 
 
-@app.scheduled("interval", seconds=10)
+@app.scheduled("interval", minutes=1)
 async def bilibili_task():
     if await get_option("disabled"):
         return

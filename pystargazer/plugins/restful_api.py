@@ -6,7 +6,7 @@ from starlette.responses import JSONResponse, PlainTextResponse, RedirectRespons
 from starlette.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
 
 from pystargazer.app import app
-from pystargazer.models import KVPair, AbstractKVContainer
+from pystargazer.models import AbstractKVContainer, KVPair
 
 
 def get_table(name: str) -> AbstractKVContainer:
@@ -16,6 +16,7 @@ def get_table(name: str) -> AbstractKVContainer:
         return app.configs
     else:
         raise KeyError("Table doesn't exist.")
+
 
 @app.route("/api/{table}")
 class RootEP(HTTPEndpoint):
