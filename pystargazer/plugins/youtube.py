@@ -275,7 +275,6 @@ class WebsubEndpoint(HTTPEndpoint):
         dup = old_video and all([
             old_video.title == video.title,
             old_video.scheduled_start_time == video.scheduled_start_time
-            if old_video.type == ResourceType.BROADCAST else True
         ])
 
         if dup:
@@ -283,9 +282,15 @@ class WebsubEndpoint(HTTPEndpoint):
             return Response()
 
         if video.type == ResourceType.VIDEO:
-            event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id,
-                                 video=video)
-            await send_youtube_event(event)
+            try:
+                old_video = next(_video for _video in read_list if video.video_id == _video.video_id)
+            except StopAsyncIteration:
+                old_video = None
+            if not old_video:
+                event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id,
+                                     video=video)
+                await send_youtube_event(event)
+                read_list.append(video)
         elif video.type == ResourceType.BROADCAST and not video.actual_start_time:
             print("Raising broadcast event")
 
