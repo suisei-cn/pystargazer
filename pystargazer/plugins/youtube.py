@@ -67,6 +67,7 @@ scheduler = app.scheduler
 http = AsyncClient()
 
 
+@app.on_startup
 async def load_states():
     global channel_list, read_list
     channel_list = await app.plugin_state.get("youtube_channel_list", {})
