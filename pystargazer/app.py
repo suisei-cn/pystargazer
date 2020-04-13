@@ -7,7 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.applications import Starlette
 from starlette.routing import Route, WebSocketRoute
 
-from .models import AbstractKVContainer, Credential, Event, KVPair
+from .models import KVContainer, Credential, Event, KVPair
 
 T_Life = Callable[[None], Awaitable[None]]
 T_Dispatcher = Callable[[Event], Awaitable[None]]
@@ -36,9 +36,9 @@ class App:
 
         # storage
         self.credentials: Credential = Credential("data/tokens.json")
-        self._vtubers: Optional[AbstractKVContainer] = None
-        self._configs: Optional[AbstractKVContainer] = None
-        self._states: Optional[AbstractKVContainer] = None
+        self._vtubers: Optional[KVContainer] = None
+        self._configs: Optional[KVContainer] = None
+        self._states: Optional[KVContainer] = None
 
         # starlette object
         self._starlette: Optional[Starlette] = None
@@ -50,19 +50,19 @@ class App:
         return self._starlette
 
     @property
-    def vtubers(self) -> AbstractKVContainer:
+    def vtubers(self) -> KVContainer:
         if not self._vtubers:
             raise RuntimeError("Vtubers storage hasn't been initialized.")
         return self._vtubers
 
     @property
-    def configs(self) -> AbstractKVContainer:
+    def configs(self) -> KVContainer:
         if not self._configs:
             raise RuntimeError("Configs storage hasn't been initialized.")
         return self._configs
 
     @property
-    def plugin_state(self) -> AbstractKVContainer:
+    def plugin_state(self) -> KVContainer:
         if not self._states:
             raise RuntimeError("Plugin state hasn't been initialized.")
         return self._states
