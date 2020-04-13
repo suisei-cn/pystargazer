@@ -6,10 +6,10 @@ from starlette.responses import JSONResponse, PlainTextResponse, RedirectRespons
 from starlette.status import HTTP_201_CREATED, HTTP_404_NOT_FOUND, HTTP_409_CONFLICT
 
 from pystargazer.app import app
-from pystargazer.models import AbstractKVContainer, KVPair
+from pystargazer.models import KVContainer, KVPair
 
 
-def get_table(name: str) -> AbstractKVContainer:
+def get_table(name: str) -> KVContainer:
     if name == "vtubers":
         return app.vtubers
     elif name == "configs":
