@@ -125,6 +125,7 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
                 "title": video.title,
                 "description": video.description,
                 "link": video.link,
+                "images": [video.thumbnail],
                 "scheduled_start_time": scheduled_start_time_print,
                 "actual_start_time": actual_start_time_print
             })
@@ -133,6 +134,7 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
                 "title": video.title,
                 "description": video.description,
                 "link": video.link,
+                "images": [video.thumbnail],
                 "scheduled_start_time": scheduled_start_time_print,
             })
         elif ytb_event.event == YoutubeEventType.SCHEDULE and not await get_option("schedule_disabled"):
@@ -140,6 +142,7 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
                 "title": video.title,
                 "description": video.description,
                 "link": video.link,
+                "images": [video.thumbnail],
                 "scheduled_start_time": scheduled_start_time_print,
             })
     if event:
