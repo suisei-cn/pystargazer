@@ -91,7 +91,7 @@ async def init_subscribe():
 
     print("channel_ids:", channel_ids)
     print("start to subscribe")
-    await asyncio.gather(*(subscribe(channel_id) for channel_id in channel_ids))
+    await asyncio.gather(*(subscribe(channel_id, ignore_conflict=True) for channel_id in channel_ids))
     print("subscribe finished")
 
 
@@ -214,12 +214,13 @@ async def _subscribe(channel_id: str, reverse: bool = False):
             pass
 
 
-async def subscribe(channel_id: str):
+async def subscribe(channel_id: str, ignore_conflict: bool = False):
     if channel_list.value.get(channel_id) is not None:
-        raise ValueError("Conflict channel id.")
-
-    channel_list.value[channel_id] = []
-    await app.plugin_state.put(channel_list)
+        if not ignore_conflict:
+            raise ValueError("Conflict channel id.")
+    else:
+        channel_list.value[channel_id] = []
+        await app.plugin_state.put(channel_list)
     await _subscribe(channel_id)
 
 
