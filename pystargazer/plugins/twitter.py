@@ -30,13 +30,14 @@ class Twitter:
         if not r:
             return since_id, None
 
-        tweet = r[0]
-        tweet_id = tweet["id"]
-        tweet_text = tweet["text"]
-        tweet_media = tweet["entities"].get("media", [])
-        tweet_photos = [medium["media_url"] for medium in tweet_media if medium["type"] == "photo"]
+        tweet_list = []
+        for _, tweet in zip(range(5), r):
+            tweet_text = tweet["text"]
+            tweet_media = tweet["entities"].get("media", [])
+            tweet_photos = [medium["media_url"] for medium in tweet_media if medium["type"] == "photo"]
+            tweet_list.append((tweet_text, tweet_photos))
 
-        return tweet_id, (tweet_text, tweet_photos)
+        return r[0]["id"], tweet_list
 
 
 twitter = Twitter(app.credentials.get("twitter"))
@@ -90,7 +91,8 @@ async def twitter_task():
         Event(
             "tweet",
             name,
-            {"text": tweet[1][0], "images": tweet[1][1]}
+            {"text": tweet[0], "images": tweet[1]}
         )
-        for name, tweet in valid_tweets.items())
+        for name, tweet_set in valid_tweets.items()
+        for tweet in tweet_set[1])
     await asyncio.gather(*(app.send_event(event) for event in events))

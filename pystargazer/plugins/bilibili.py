@@ -23,22 +23,36 @@ class Bilibili:
         }
 
         r = (await self.client.get(url, params=payload)).json()
+        # noinspection PyTypeChecker
+        cards = r["data"]["cards"]
 
-        try:
-            # noinspection PyTypeChecker
-            dyn = json.loads(r["data"]["cards"][0]["card"])["item"]
-        except json.JSONDecodeError:
-            print("Bilibili Dynamic read error")
-            return since_id, None
+        rtn_id = since_id
+        dyn_list = []
 
-        dyn_id = dyn["id"]
-        if dyn_id == since_id:
-            return since_id, None
+        counter = 0
 
-        dyn_description = dyn["description"]
-        dyn_photos = [entry["img_src"] for entry in dyn["pictures"]]
+        for raw_card in cards:
+            card = json.loads(raw_card["card"])
+            if not (dyn := card.get("item")):
+                continue
+            if not (dyn_id := dyn.get("id")):
+                continue
 
-        return dyn_id, (dyn_description, dyn_photos)
+            counter += 1
+            if counter == 1:
+                rtn_id = dyn_id
+            elif counter == 6:
+                break
+
+            if dyn_id == since_id:
+                break
+
+            dyn_description = dyn["description"]
+            dyn_photos = [entry["img_src"] for entry in dyn["pictures"]]
+
+            dyn_list.append((dyn_description, dyn_photos))
+
+        return rtn_id, dyn_list
 
 
 bilibili = Bilibili()
@@ -92,9 +106,10 @@ async def bilibili_task():
         Event(
             "bili_dyn",
             name,
-            {"text": dyn[1][0], "images": dyn[1][1]}
+            {"text": dyn[0], "images": dyn[1]}
         )
-        for name, dyn in valid_dyns.items()
-        if dyn[1][0] == "分享图片"
+        for name, dyn_set in valid_dyns.items()
+        for dyn in dyn_set[1]
+        if dyn[0] == "分享图片"
     )
     await asyncio.gather(*(app.send_event(event) for event in events))
