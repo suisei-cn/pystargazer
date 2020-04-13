@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 from functools import partial
 from itertools import cycle
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple
 from urllib.parse import parse_qs, urljoin, urlparse
 
 import dateutil.parser
@@ -61,10 +61,16 @@ class YoutubeEvent:
 
 token_g: Iterator[str] = cycle(app.credentials.get("youtube"))
 callback_url: str = app.credentials.get("base_url")
-channel_list: Dict[str, List[Video]] = {}
-read_list: List[Video] = []
+channel_list: Optional[KVPair] = None
+read_list: Optional[KVPair] = None
 scheduler = app.scheduler
 http = AsyncClient()
+
+
+async def load_states():
+    global channel_list, read_list
+    channel_list = await app.plugin_state.get("youtube_channel_list", {})
+    read_list = await app.plugin_state.get("youtube_read_list", {"read": []})
 
 
 async def get_option(key: str):
@@ -88,6 +94,7 @@ async def init_subscribe():
     print("subscribe finished")
 
 
+# noinspection PyUnusedLocal
 @app.route("/help/youtube", methods=["GET"])
 async def youtube_help(request: Request):
     return PlainTextResponse(
@@ -207,26 +214,28 @@ async def _subscribe(channel_id: str, reverse: bool = False):
 
 
 async def subscribe(channel_id: str):
-    if channel_list.get(channel_id) is not None:
+    if channel_list.value.get(channel_id) is not None:
         raise ValueError("Conflict channel id.")
 
-    channel_list[channel_id] = []
+    channel_list.value[channel_id] = []
+    await app.plugin_state.put(channel_list)
     await _subscribe(channel_id)
 
 
 async def unsubscribe(channel_id: str, pop: bool = True):
-    if channel_list.get(channel_id) is None:
+    if channel_list.value.get(channel_id) is None:
         raise ValueError("Not found.")
 
-    for video in channel_list[channel_id]:
+    for video in channel_list.value[channel_id]:
         try:
             scheduler.remove_job(f'reminder_{channel_id}_{video.video_id}')
         except JobLookupError:
             pass
 
     if pop:
-        channel_list.pop(channel_id)
+        channel_list.value.pop(channel_id)
 
+    await app.plugin_state.put(channel_list)
     await _subscribe(channel_id, True)
 
 
@@ -240,8 +249,8 @@ class WebsubEndpoint(HTTPEndpoint):
 
         channel_id = parse_qs(urlparse(topic).query).get("channel_id")[0]
 
-        accept = (mode == "subscribe" and channel_id in channel_list) or (
-                mode == "unsubscribe" and channel_id not in channel_list)
+        accept = (mode == "subscribe" and channel_id in channel_list.value) or (
+                mode == "unsubscribe" and channel_id not in channel_list.value)
 
         if not accept:
             print(f"Rejecting {mode}: {channel_id}")
@@ -268,7 +277,7 @@ class WebsubEndpoint(HTTPEndpoint):
 
         try:
             old_video = \
-                next(_video for _video in channel_list[channel_id] if video.video_id == _video.video_id)
+                next(_video for _video in channel_list.value[channel_id] if video.video_id == _video.video_id)
             print("Duplicate video id detected. Checking...")
         except StopIteration:
             old_video = None
@@ -288,21 +297,23 @@ class WebsubEndpoint(HTTPEndpoint):
 
         if video.type == ResourceType.VIDEO:
             try:
-                old_video = next(_video for _video in read_list if video.video_id == _video.video_id)
+                old_video = next(_video for _video in read_list.value["read"] if video.video_id == _video.video_id)
             except StopAsyncIteration:
                 old_video = None
             if not old_video:
                 event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id,
                                      video=video)
                 await send_youtube_event(event)
-                read_list.append(video)
+                read_list.value["read"].append(video)
+                await app.plugin_state.put(read_list)
         elif video.type == ResourceType.BROADCAST and not video.actual_start_time:
             print("Raising broadcast event")
 
             if old_video:
-                channel_list[channel_id].remove(old_video)
+                channel_list.value[channel_id].remove(old_video)
 
-            channel_list[channel_id].append(video)  # for actual start event
+            channel_list.value[channel_id].append(video)  # for actual start event
+            await app.plugin_state.put(channel_list)
 
             event_schedule = YoutubeEvent(type=video.type, event=YoutubeEventType.SCHEDULE,
                                           channel=channel_id, video=video)
@@ -350,35 +361,37 @@ async def on_delete(obj: KVPair):
 @app.scheduled("interval", minutes=1, id="ytb_tick")
 async def tick():
     remove_list: List[Tuple[str, Video]] = []
-    for channel_id, videos in channel_list.items():
+    for channel_id, videos in channel_list.value.items():
         for video in videos:
+            now = datetime.datetime.now().replace(tzinfo=tz.tzlocal())
             if not video.scheduled_start_time:
                 remove_list.append((channel_id, video))
                 print("video doesn't have scheduled start time", video)
-            elif datetime.datetime.now().replace(tzinfo=tz.tzlocal()) >= video.scheduled_start_time:
+            elif now >= video.scheduled_start_time:
                 if not await query_video(video):
                     remove_list.append((channel_id, video))
                     print("video query failure. deleting")
                 if video.actual_start_time:
                     # broadcast has started
-                    event = YoutubeEvent(type=ResourceType.BROADCAST, event=YoutubeEventType.LIVE,
-                                         channel=channel_id, video=video)
-                    await send_youtube_event(event)
+                    if (now - video.actual_start_time).total_seconds() < 10800:    # filter old broadcasts
+                        event = YoutubeEvent(type=ResourceType.BROADCAST, event=YoutubeEventType.LIVE,
+                                             channel=channel_id, video=video)
+                        await send_youtube_event(event)
                     remove_list.append((channel_id, video))
     for channel_id, video in remove_list:
-        channel_list[channel_id].remove(video)
+        channel_list.value[channel_id].remove(video)
+    await app.plugin_state.put(channel_list)
 
 
 @app.scheduled("interval", hours=8, id="ytb_renewal")
 async def renewal():
-    for channel_id in channel_list:
+    for channel_id in channel_list.value:
         await _subscribe(channel_id)
 
 
 # @app.on_shutdown
 async def cleanup():
-    for channel_id in channel_list:
+    for channel_id in channel_list.value:
         await unsubscribe(channel_id, pop=False)
-    channel_list.clear()
     scheduler.remove_job("ytb_tick")
     scheduler.remove_job("ytb_renewal")
