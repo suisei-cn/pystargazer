@@ -1,6 +1,6 @@
 import asyncio
 import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from functools import partial
 from itertools import cycle
@@ -44,6 +44,13 @@ class Video:
     thumbnail: str = ""
     scheduled_start_time: Optional[datetime.datetime] = None
     actual_start_time: Optional[datetime.datetime] = None
+
+    @classmethod
+    def load(cls, d: dict):
+        return cls(**d)
+
+    def asdict(self):
+        return asdict(self)
 
 
 @dataclass
@@ -228,7 +235,7 @@ async def unsubscribe(channel_id: str, pop: bool = True):
     if channel_list.value.get(channel_id) is None:
         raise ValueError("Not found.")
 
-    for video in channel_list.value[channel_id]:
+    for video in map(Video.load, channel_list.value[channel_id]):
         try:
             scheduler.remove_job(f'reminder_{channel_id}_{video.video_id}')
         except JobLookupError:
@@ -279,7 +286,8 @@ class WebsubEndpoint(HTTPEndpoint):
 
         try:
             old_video = \
-                next(_video for _video in channel_list.value[channel_id] if video.video_id == _video.video_id)
+                next(_video for _video in map(Video.load, channel_list.value[channel_id])
+                     if video.video_id == _video.video_id)
             print("Duplicate video id detected. Checking...")
         except StopIteration:
             old_video = None
@@ -299,22 +307,23 @@ class WebsubEndpoint(HTTPEndpoint):
 
         if video.type == ResourceType.VIDEO:
             try:
-                old_video = next(_video for _video in read_list.value["read"] if video.video_id == _video.video_id)
+                old_video = next(_video for _video in map(Video.load, read_list.value["read"])
+                                 if video.video_id == _video.video_id)
             except StopAsyncIteration:
                 old_video = None
             if not old_video:
                 event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id,
                                      video=video)
                 await send_youtube_event(event)
-                read_list.value["read"].append(video)
+                read_list.value["read"].append(video.asdict())
                 await app.plugin_state.put(read_list)
         elif video.type == ResourceType.BROADCAST and not video.actual_start_time:
             print("Raising broadcast event")
 
             if old_video:
-                channel_list.value[channel_id].remove(old_video)
+                channel_list.value[channel_id].remove(old_video.asdict())
 
-            channel_list.value[channel_id].append(video)  # for actual start event
+            channel_list.value[channel_id].append(video.asdict())  # for actual start event
             await app.plugin_state.put(channel_list)
 
             event_schedule = YoutubeEvent(type=video.type, event=YoutubeEventType.SCHEDULE,
@@ -363,8 +372,9 @@ async def on_delete(obj: KVPair):
 @app.scheduled("interval", minutes=1, id="ytb_tick")
 async def tick():
     remove_list: List[Tuple[str, Video]] = []
-    for channel_id, videos in channel_list.value.items():
-        for video in videos:
+    for channel_id, _videos in channel_list.value.items():
+        for _video in _videos:
+            video = Video.load(_video)
             now = datetime.datetime.now().replace(tzinfo=tz.tzlocal())
             if not video.scheduled_start_time:
                 remove_list.append((channel_id, video))
@@ -381,7 +391,7 @@ async def tick():
                         await send_youtube_event(event)
                     remove_list.append((channel_id, video))
     for channel_id, video in remove_list:
-        channel_list.value[channel_id].remove(video)
+        channel_list.value[channel_id].remove(video.asdict())
     await app.plugin_state.put(channel_list)
 
 
