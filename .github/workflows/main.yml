@@ -1,0 +1,17 @@
+name: Publish Docker
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Publish to Dockerhub
+        uses: elgohr/Publish-Docker-Github-Action@master
+        with:
+          name: photonquantum/pystargazer
+          username: ${{ secrets.PQ_DOCKER_USERNAME }}
+          password: ${{ secrets.PQ_DOCKER_PASSWORD }}
