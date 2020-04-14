@@ -18,7 +18,6 @@ class App:
         # Initialize event loop
         self._loop: AbstractEventLoop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
-        self._loop.set_debug(True)
 
         # hook containers
         # lifespan
