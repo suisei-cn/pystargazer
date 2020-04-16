@@ -88,6 +88,7 @@ async def init_subscribe():
     print("subscribe finished")
 
 
+# noinspection PyUnusedLocal
 @app.route("/help/youtube", methods=["GET"])
 async def youtube_help(request: Request):
     return PlainTextResponse(
@@ -352,18 +353,20 @@ async def tick():
     remove_list: List[Tuple[str, Video]] = []
     for channel_id, videos in channel_list.items():
         for video in videos:
+            now = datetime.datetime.now().replace(tzinfo=tz.tzlocal())
             if not video.scheduled_start_time:
                 remove_list.append((channel_id, video))
                 print("video doesn't have scheduled start time", video)
-            elif datetime.datetime.now().replace(tzinfo=tz.tzlocal()) >= video.scheduled_start_time:
+            elif now >= video.scheduled_start_time:
                 if not await query_video(video):
                     remove_list.append((channel_id, video))
                     print("video query failure. deleting")
                 if video.actual_start_time:
-                    # broadcast has started
-                    event = YoutubeEvent(type=ResourceType.BROADCAST, event=YoutubeEventType.LIVE,
-                                         channel=channel_id, video=video)
-                    await send_youtube_event(event)
+                    if (now - video.actual_start_time).total_seconds() < 10800:
+                        # broadcast has started
+                        event = YoutubeEvent(type=ResourceType.BROADCAST, event=YoutubeEventType.LIVE,
+                                             channel=channel_id, video=video)
+                        await send_youtube_event(event)
                     remove_list.append((channel_id, video))
     for channel_id, video in remove_list:
         channel_list[channel_id].remove(video)
