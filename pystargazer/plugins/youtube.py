@@ -75,7 +75,7 @@ async def get_option(key: str):
 
 
 # use one-shot schedule instead of on_startup to ensure callback can handle validation in time
-@app.scheduled(None)
+@app.scheduled(None, misfire_grace_time=5)
 async def init_subscribe():
     channel_ids: List[str] = []
     # noinspection PyTypeChecker
