@@ -289,7 +289,7 @@ class WebsubEndpoint(HTTPEndpoint):
         if video.type == ResourceType.VIDEO:
             try:
                 old_video = next(_video for _video in read_list if video.video_id == _video.video_id)
-            except StopAsyncIteration:
+            except StopIteration:
                 old_video = None
             if not old_video:
                 event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id,
