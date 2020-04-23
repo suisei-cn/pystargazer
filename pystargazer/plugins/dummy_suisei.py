@@ -1,3 +1,5 @@
+import logging
+
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
@@ -7,12 +9,12 @@ from pystargazer.models import Event
 
 @app.on_startup
 async def startup():
-    print("Start")
+    logging.info("Plugin Start")
 
 
 @app.on_shutdown
 async def shutdown():
-    print("Stop")
+    logging.info("Plugin Stop")
 
 
 @app.on_create("vtubers")

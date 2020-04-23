@@ -14,7 +14,7 @@ class Twitter:
         self.client.headers = Headers({
             "Accept": "application/json",
             "Authorization": f"Bearer {token}",
-            "User-Agent": "holo observatory bot/1.0.0 (cy.n01@outlook.com)"
+            "User-Agent": "holo observatory bot/1.0.0"
         })
 
     async def fetch(self, user_id: int, since_id: int = 1):

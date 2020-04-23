@@ -77,8 +77,8 @@ class Credential:
         except json.JSONDecodeError:
             self._tokens = {}
 
-    def get(self, key: str):
-        return self._tokens[key]
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._tokens.get(key, default)
 
     def put(self, key: str, obj):
         self._tokens[key] = obj

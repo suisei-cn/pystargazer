@@ -4,5 +4,6 @@
     "<API_TOKEN_N>"
   ],
   "twitter": "<USER_TOKEN>",
-  "base_url": "<BASE_URL>"
+  "base_url": "<BASE_URL>",
+  "admin_token": "<ADMIN_TOKEN>"
 }

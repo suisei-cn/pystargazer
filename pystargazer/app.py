@@ -1,13 +1,15 @@
 import asyncio
+import logging
 import traceback
 from asyncio import AbstractEventLoop
 from typing import Awaitable, Callable, Dict, List, Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.routing import Route, WebSocketRoute
 
-from .models import KVContainer, Credential, Event, KVPair
+from .models import Credential, Event, KVContainer, KVPair
 
 T_Life = Callable[[None], Awaitable[None]]
 T_Dispatcher = Callable[[Event], Awaitable[None]]
@@ -16,14 +18,15 @@ T_Dispatcher = Callable[[Event], Awaitable[None]]
 class App:
     def __init__(self):
         # Initialize event loop
-        self._loop: AbstractEventLoop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self._loop)
+        self.loop: AbstractEventLoop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
 
         # hook containers
         # lifespan
         self._startup: List[T_Life] = []
         self._shutdown: List[T_Life] = []
         self._routes: List[Route] = []
+        self._middleware: list = []
         self._dispatchers: List[T_Dispatcher] = []
         # storage related
         self._on_update: Dict[str, List[Callable[[KVPair, dict, dict, dict], Awaitable[None]]]] = {}
@@ -31,7 +34,7 @@ class App:
         self._on_delete: Dict[str, List[Callable[[KVPair], Awaitable[None]]]] = {}
 
         # job scheduler
-        self.scheduler: AsyncIOScheduler = AsyncIOScheduler(event_loop=self._loop)
+        self.scheduler: AsyncIOScheduler = AsyncIOScheduler(event_loop=self.loop)
 
         # storage
         self.credentials: Credential = Credential("data/tokens.json")
@@ -41,6 +44,10 @@ class App:
 
         # starlette object
         self._starlette: Optional[Starlette] = None
+
+    def init_starlette(self, debug: bool = False):
+        self._starlette = Starlette(debug=debug, routes=self._routes, middleware=self._middleware,
+                                    on_startup=self._startup, on_shutdown=self._shutdown)
 
     @property
     def starlette(self) -> Starlette:
@@ -74,9 +81,15 @@ class App:
             except Exception:
                 traceback.print_exc()
 
+    async def register_middleware(self, middleware: Middleware):
+        if not isinstance(middleware, Middleware):
+            logging.warning(f"{middleware} is not a Middleware.")
+        self._middleware.append(middleware)
+
     # Storage events
     async def hook_create(self, storage_name: str, obj: KVPair):
         for callback in self._on_create.get(storage_name, []):
+            # noinspection PyBroadException
             try:
                 await callback(obj)
             except Exception:
@@ -84,6 +97,7 @@ class App:
 
     async def hook_update(self, storage_name: str, obj: KVPair, added: dict, removed: dict, updated: dict):
         for callback in self._on_update.get(storage_name, []):
+            # noinspection PyBroadException
             try:
                 await callback(obj, added, removed, updated)
             except Exception:
@@ -91,6 +105,7 @@ class App:
 
     async def hook_delete(self, storage_name: str, obj: KVPair):
         for callback in self._on_delete.get(storage_name, []):
+            # noinspection PyBroadException
             try:
                 await callback(obj)
             except Exception:

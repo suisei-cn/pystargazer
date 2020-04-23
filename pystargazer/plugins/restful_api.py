@@ -1,5 +1,6 @@
 from urllib.parse import urljoin
 
+from starlette.authentication import requires
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
@@ -21,7 +22,10 @@ def get_table(name: str) -> KVContainer:
 @app.route("/api/{table}")
 class RootEP(HTTPEndpoint):
     async def get(self, request: Request):
-        table = get_table(request.path_params["table"])
+        try:
+            table = get_table(request.path_params["table"])
+        except KeyError:
+            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
 
         keys = []
         # noinspection PyTypeChecker
@@ -30,8 +34,12 @@ class RootEP(HTTPEndpoint):
 
         return JSONResponse(keys)
 
+    @requires(["admin"])
     async def post(self, request: Request):
-        table = get_table(request.path_params["table"])
+        try:
+            table = get_table(request.path_params["table"])
+        except KeyError:
+            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
 
         key = (await request.body()).decode("utf-8")
         if (await table.get(key)) is not None:
@@ -44,13 +52,17 @@ class RootEP(HTTPEndpoint):
 @app.route("/api/{table}/{prime_key}")
 class EntryEP(HTTPEndpoint):
     async def get(self, request: Request):
-        table = get_table(request.path_params["table"])
+        try:
+            table = get_table(request.path_params["table"])
+        except KeyError:
+            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
 
         key = request.path_params["prime_key"]
         if (value := await table.get(key)) is None:
             return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
         return JSONResponse(value.value)
 
+    @requires(["admin"])
     async def delete(self, request: Request):
         table = get_table(request.path_params["table"])
 
@@ -65,7 +77,10 @@ class EntryEP(HTTPEndpoint):
 @app.route("/api/{table}/{prime_key}/{key}")
 class KeyEP(HTTPEndpoint):
     async def get(self, request: Request):
-        table = get_table(request.path_params["table"])
+        try:
+            table = get_table(request.path_params["table"])
+        except KeyError:
+            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
 
         prime_key = request.path_params["prime_key"]
         key = request.path_params["key"]
@@ -76,8 +91,12 @@ class KeyEP(HTTPEndpoint):
             return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
         return JSONResponse(value)
 
+    @requires(["admin"])
     async def put(self, request: Request):
-        table = get_table(request.path_params["table"])
+        try:
+            table = get_table(request.path_params["table"])
+        except KeyError:
+            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
 
         prime_key = request.path_params["prime_key"]
         if (prime_value := await table.get(prime_key)) is None:
@@ -91,8 +110,12 @@ class KeyEP(HTTPEndpoint):
         await table.put(prime_value)
         return Response()
 
+    @requires(["admin"])
     async def delete(self, request: Request):
-        table = get_table(request.path_params["table"])
+        try:
+            table = get_table(request.path_params["table"])
+        except KeyError:
+            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
 
         prime_key = request.path_params["prime_key"]
         if (vtuber := await table.get(prime_key)) is None:

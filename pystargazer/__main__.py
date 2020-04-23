@@ -2,11 +2,12 @@ import importlib
 import os
 from os import path
 
-from starlette.applications import Starlette
 from uvicorn.main import Config, Server
 
 from .app import app
 from .models import KVContainer
+
+debug = os.environ.get("debug") == "true"
 
 app._vtubers = KVContainer(app.credentials.get("vtubers_storage"), "vtubers")
 app._configs = KVContainer(app.credentials.get("configs_storage"), "configs")
@@ -18,12 +19,9 @@ plugins = {plugin.__name__: plugin for plugin in
            [importlib.import_module(f"pystargazer.plugins.{plugin_path}") for plugin_path in plugins_path]}
 
 app.scheduler.start()
-debug = os.environ.get("debug") == "true"
-# noinspection PyProtectedMember
-app._starlette = Starlette(debug=debug,
-                           routes=app._routes, on_startup=app._startup, on_shutdown=app._shutdown)
+app.init_starlette(debug)
 
 config = Config(app.starlette, host="0.0.0.0", port=8000 if debug else 80, log_level="info", lifespan="on")
 server = Server(config)
 # noinspection PyProtectedMember
-app._loop.run_until_complete(server.serve())
+app.loop.run_until_complete(server.serve())
