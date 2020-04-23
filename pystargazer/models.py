@@ -140,7 +140,7 @@ class KVContainer:
         return self.container.iter()
 
     async def delete(self, obj: KVPair) -> KVPair:
-        obj = await self.delete(obj)
+        obj = await self.container.delete(obj)
         await app.app.hook_delete(self.name, obj)
         return obj
 
