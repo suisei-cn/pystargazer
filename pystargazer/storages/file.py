@@ -10,7 +10,7 @@ from pystargazer.models import AbstractKVContainer, KVPair
 class FileKVContainer(AbstractKVContainer):
     async def delete(self, obj: KVPair) -> KVPair:
         doc: Document = self.table.search(where("key") == obj.key)[0]
-        self.table.remove(doc_id=doc.doc_id)
+        self.table.remove(doc_ids=[doc.doc_id])
         return KVPair.load(doc)
 
     async def iter(self) -> AsyncGenerator[KVPair, None]:
