@@ -1,4 +1,5 @@
 from typing import Tuple
+from distutils.util import strtobool as _strtobool
 
 
 def compare_dict(d1, d2) -> Tuple[dict, dict, dict]:
@@ -8,3 +9,11 @@ def compare_dict(d1, d2) -> Tuple[dict, dict, dict]:
     removed = {k: d1[k] for k in set_1 - set_2}
     updated = {k: (d1[k], d2[k]) for k in set_1 & set_2 if d1[k] != d2[k]}
     return added, removed, updated
+
+
+def strtobool(val: str, default: bool = False) -> bool:
+    try:
+        return _strtobool(val)
+    except (AttributeError, ValueError):
+        return default
+

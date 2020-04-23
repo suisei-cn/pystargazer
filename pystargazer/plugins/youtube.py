@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
@@ -82,10 +83,9 @@ async def init_subscribe():
     async for vtuber in app.vtubers.has_field("youtube"):
         channel_ids.append(vtuber.value["youtube"])
 
-    print("channel_ids:", channel_ids)
-    print("start to subscribe")
+    logging.info(f"Subscribing: {channel_ids}")
     await asyncio.gather(*(subscribe(channel_id) for channel_id in channel_ids))
-    print("subscribe finished")
+    logging.info("Subscribe finished")
 
 
 # noinspection PyUnusedLocal
@@ -169,11 +169,8 @@ async def query_video(video: Video) -> bool:
     try:
         item = data['items'][0]
     except IndexError:
-        print("youtube data api malformed response", data)
+        logging.error(f"Youtube data api malformed response: {data}")
         return False
-
-    print("query result", str(item)[:200])
-    print("query result", str(item)[-200:])
 
     if snippet := item.get("snippet"):
         video.description = f'{snippet.get("description")} ...'
@@ -245,16 +242,16 @@ class WebsubEndpoint(HTTPEndpoint):
                 mode == "unsubscribe" and channel_id not in channel_list)
 
         if not accept:
-            print(f"Rejecting {mode}: {channel_id}")
+            logging.info(f"Rejecting {mode}: {channel_id}")
             return Response(None, status_code=HTTP_404_NOT_FOUND)
 
-        print(f"Accepting {mode}: {channel_id}")
+        logging.info(f"Accepting {mode}: {channel_id}")
         return PlainTextResponse(challenge)
 
     # noinspection PyMethodMayBeStatic
     async def post(self, request: Request):
         body = (await request.body()).decode("utf-8")
-        print(body)
+        logging.debug(body)
         if "deleted-entry" in body:
             return Response()
         feed = feedparser.parse(body)
@@ -265,17 +262,17 @@ class WebsubEndpoint(HTTPEndpoint):
 
         video = Video(video_id=video_id, title=video_title, link=video_link)
 
-        print(f"Adding video {video_id}")
+        logging.info(f"Adding video {video_id}")
 
         try:
             old_video = \
                 next(_video for _video in channel_list[channel_id] if video.video_id == _video.video_id)
-            print("Duplicate video id detected. Checking...")
+            logging.debug("Duplicate video id detected. Checking...")
         except StopIteration:
             old_video = None
 
         if not await query_video(video):
-            print("Query failure. Ignoring.")
+            logging.warning("Query failure. Ignoring.")
             return Response()
 
         dup = old_video and all([
@@ -284,7 +281,7 @@ class WebsubEndpoint(HTTPEndpoint):
         ])
 
         if dup:
-            print("Duplicate video. Ignoring.")
+            logging.debug("Duplicate video. Ignoring.")
             return Response()
 
         if video.type == ResourceType.VIDEO:
@@ -298,8 +295,6 @@ class WebsubEndpoint(HTTPEndpoint):
                 await send_youtube_event(event)
                 read_list.append(video)
         elif video.type == ResourceType.BROADCAST and not video.actual_start_time:
-            print("Raising broadcast event")
-
             if old_video:
                 channel_list[channel_id].remove(old_video)
 
@@ -319,9 +314,6 @@ class WebsubEndpoint(HTTPEndpoint):
                               day=video.scheduled_start_time.day, hour=video.scheduled_start_time.hour,
                               minute=video.scheduled_start_time.minute,
                               second=video.scheduled_start_time.second)
-
-            print("schedule", event_schedule)
-            print("reminder", event_reminder)
 
             # for scheduled
             await send_youtube_event(event_schedule)
@@ -356,11 +348,11 @@ async def tick():
             now = datetime.datetime.now().replace(tzinfo=tz.tzlocal())
             if not video.scheduled_start_time:
                 remove_list.append((channel_id, video))
-                print("video doesn't have scheduled start time", video)
+                logging.warning(f"Video doesn't have scheduled start time: {video}. Deleting.")
             elif now >= video.scheduled_start_time:
                 if not await query_video(video):
                     remove_list.append((channel_id, video))
-                    print("video query failure. deleting")
+                    logging.warning("Video query failure. Deleting")
                 if video.actual_start_time:
                     if (now - video.actual_start_time).total_seconds() < 10800:
                         # broadcast has started

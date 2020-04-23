@@ -81,7 +81,7 @@ class App:
             except Exception:
                 traceback.print_exc()
 
-    async def register_middleware(self, middleware: Middleware):
+    def register_middleware(self, middleware: Middleware):
         if not isinstance(middleware, Middleware):
             logging.warning(f"{middleware} is not a Middleware.")
         self._middleware.append(middleware)

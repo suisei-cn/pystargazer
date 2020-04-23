@@ -19,17 +19,17 @@ async def shutdown():
 
 @app.on_create("vtubers")
 async def on_create(obj):
-    print("created", obj)
+    logging.debug("created", obj)
 
 
 @app.on_delete("vtubers")
 async def on_delete(obj):
-    print("deleted", obj)
+    logging.debug("deleted", obj)
 
 
 @app.on_update("vtubers")
 async def on_update(obj, added, removed, updated):
-    print("updated", obj, added, removed, updated)
+    logging.debug("updated", obj, added, removed, updated)
 
 
 @app.route("/")
