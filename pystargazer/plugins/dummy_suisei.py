@@ -5,6 +5,9 @@ from starlette.responses import PlainTextResponse
 
 from pystargazer.app import app
 from pystargazer.models import Event
+from pystargazer.utils import get_option as _get_option
+
+get_option = _get_option(app, "dummy_suisei")
 
 
 @app.on_startup
@@ -39,7 +42,6 @@ async def hihihi(request: Request):
 
 @app.scheduled("interval", hours=3)
 async def eeehihihi():
-    if (my_config := await app.configs.get("dummy_suisei")) is not None:
-        if my_config.value.get("disabled") == "true":
-            return
+    if get_option("disabled"):
+        return
     await app.send_event(Event("dummy_suisei", "suisei", {}))

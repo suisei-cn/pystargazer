@@ -21,6 +21,8 @@ from starlette.status import HTTP_404_NOT_FOUND
 from pystargazer.app import app
 from pystargazer.models import Event
 from pystargazer.models import KVPair
+from pystargazer.utils import strtobool
+from pystargazer.utils import get_option as _get_option
 
 
 class ResourceType(Enum):
@@ -67,12 +69,7 @@ read_list: List[Video] = []
 scheduler = app.scheduler
 http = AsyncClient()
 
-
-async def get_option(key: str):
-    if (my_config := await app.configs.get("youtube")) is not None:
-        if my_config.value.get(key) == "true":
-            return True
-    return False
+get_option = _get_option(app, "youtube")
 
 
 # use one-shot schedule instead of on_startup to ensure callback can handle validation in time

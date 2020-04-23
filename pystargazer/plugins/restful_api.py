@@ -42,7 +42,9 @@ class RootEP(HTTPEndpoint):
             return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
 
         key = (await request.body()).decode("utf-8")
-        if (await table.get(key)) is not None:
+        try:
+            await table.get(key)
+        except KeyError:
             return PlainTextResponse("Conflict", status_code=HTTP_409_CONFLICT)
 
         await table.put(KVPair(key, {}))
@@ -58,8 +60,11 @@ class EntryEP(HTTPEndpoint):
             return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
 
         key = request.path_params["prime_key"]
-        if (value := await table.get(key)) is None:
+        try:
+            value = await table.get(key)
+        except KeyError:
             return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
+
         return JSONResponse(value.value)
 
     @requires(["admin"])
@@ -67,7 +72,9 @@ class EntryEP(HTTPEndpoint):
         table = get_table(request.path_params["table"])
 
         key = request.path_params["prime_key"]
-        if await table.get(key) is None:
+        try:
+            await table.get(key)
+        except KeyError:
             return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
 
         await table.delete(KVPair(key, {}))
@@ -84,7 +91,9 @@ class KeyEP(HTTPEndpoint):
 
         prime_key = request.path_params["prime_key"]
         key = request.path_params["key"]
-        if (prime_value := await table.get(prime_key)) is None:
+        try:
+            prime_value = await table.get(prime_key)
+        except KeyError:
             return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
 
         if (value := prime_value.value.get(key)) is None:
@@ -99,7 +108,9 @@ class KeyEP(HTTPEndpoint):
             return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
 
         prime_key = request.path_params["prime_key"]
-        if (prime_value := await table.get(prime_key)) is None:
+        try:
+            prime_value = await table.get(prime_key)
+        except KeyError:
             return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
 
         key = request.path_params["key"]
@@ -118,7 +129,9 @@ class KeyEP(HTTPEndpoint):
             return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
 
         prime_key = request.path_params["prime_key"]
-        if (vtuber := await table.get(prime_key)) is None:
+        try:
+            vtuber = await table.get(prime_key)
+        except KeyError:
             return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
         key = request.path_params["key"]
         if vtuber.value.get(key) is None:

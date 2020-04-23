@@ -6,6 +6,7 @@ from starlette.responses import PlainTextResponse
 
 from pystargazer.app import app
 from pystargazer.models import Event, KVPair
+from pystargazer.utils import get_option as _get_option
 
 
 class Twitter:
@@ -43,11 +44,7 @@ class Twitter:
 twitter = Twitter(app.credentials.get("twitter"))
 
 
-async def get_option(key: str):
-    if (my_config := await app.configs.get("twitter")) is not None:
-        if my_config.value.get(key) == "true":
-            return True
-    return False
+get_option = _get_option(app, "twitter")
 
 
 @app.route("/help/twitter", methods=["GET"])
@@ -61,7 +58,9 @@ async def youtube_help(request: Request):
 
 @app.on_startup
 async def twitter_startup():
-    if await app.plugin_state.get("twitter_since") is None:
+    try:
+        await app.plugin_state.get("twitter_since")
+    except KeyError:
         await app.plugin_state.put(KVPair("twitter_since", {}))
 
 

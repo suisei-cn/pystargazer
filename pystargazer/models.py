@@ -114,12 +114,9 @@ class KVContainer:
         self.name = container_name
         self.container: AbstractKVContainer = self._get_kv_container(url)
 
-    async def get(self, key: str, default=None) -> KVPair:
-        if default is None:
-            default = {}
+    async def get(self, key: str) -> KVPair:
         if (rtn := await self.container.get(key)) is None:
-            rtn = KVPair(key, default)
-            await self.put(rtn)
+            raise KeyError
         return rtn
 
     def has_field(self, field: str) -> AsyncGenerator[KVPair, None]:

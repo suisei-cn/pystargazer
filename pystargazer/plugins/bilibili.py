@@ -7,6 +7,7 @@ from starlette.responses import PlainTextResponse
 
 from pystargazer.app import app
 from pystargazer.models import Event, KVPair
+from pystargazer.utils import get_option as _get_option
 
 
 class Bilibili:
@@ -57,12 +58,7 @@ class Bilibili:
 
 bilibili = Bilibili()
 
-
-async def get_option(key: str):
-    if (my_config := await app.configs.get("bilibili")) is not None:
-        if my_config.value.get(key) == "true":
-            return True
-    return False
+get_option = _get_option(app, "bilibili")
 
 
 @app.route("/help/bilibili", methods=["GET"])
@@ -76,7 +72,9 @@ async def youtube_help(request: Request):
 
 @app.on_startup
 async def bilibili_setup():
-    if await app.plugin_state.get("bilibili_since") is None:
+    try:
+        await app.plugin_state.get("bilibili_since")
+    except KeyError:
         await app.plugin_state.put(KVPair("bilibili_since", {}))
 
 

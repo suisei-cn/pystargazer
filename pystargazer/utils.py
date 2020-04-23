@@ -17,3 +17,11 @@ def strtobool(val: str, default: bool = False) -> bool:
     except (AttributeError, ValueError):
         return default
 
+
+def get_option(app, scope: str):
+    async def func(key: str, default: bool = False):
+        try:
+            return strtobool((await app.configs.get(scope)).value.get(key), default)
+        except KeyError:
+            return default
+    return func
