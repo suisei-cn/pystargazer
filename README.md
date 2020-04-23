@@ -31,6 +31,27 @@ Copy `tokens_example.json` to `tokens.json`, and fill in your tokens, then
 python -m pystargazer
 ```
 
+## Installation
+### Arch Linux
+Use PKGBUILD to build the package and install.
+
+``` shell script
+git clone https://github.com/suisei-cn/archpkgs.git
+cd archpkgs/pystargazer-git
+makepkg
+pacman -U pystargazer-git-rx.xxxxxxx-1-any.pkg.tar.zst
+```
+
+### setuptools
+Clone this repo and use setup.py to build and install.
+
+``` shell script
+git clone https://github.com/suisei-cn/pystargazer.git
+cd pystargazer
+python setup.py build && python setup.py install
+```
+
+
 Expose the tracker's HTTP port to public if you want to monitor youtube broadcasts.
 
 ## License
