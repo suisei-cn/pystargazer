@@ -31,6 +31,8 @@ Copy `tokens_example.json` to `tokens.json`, and fill in your tokens, then
 python -m pystargazer
 ```
 
+Expose the tracker's HTTP port to public if you want to monitor youtube broadcasts.
+
 ## Installation
 ### Arch Linux
 Use PKGBUILD to build the package and install.
@@ -50,9 +52,6 @@ git clone https://github.com/suisei-cn/pystargazer.git
 cd pystargazer
 python setup.py build && python setup.py install
 ```
-
-
-Expose the tracker's HTTP port to public if you want to monitor youtube broadcasts.
 
 ## License
 This project is licensed under MIT License - see the [LICENSE](LICENSE) file for details.
