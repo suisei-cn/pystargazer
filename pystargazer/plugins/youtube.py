@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from functools import partial
 from itertools import cycle
@@ -21,7 +21,6 @@ from starlette.status import HTTP_404_NOT_FOUND
 from pystargazer.app import app
 from pystargazer.models import Event
 from pystargazer.models import KVPair
-from pystargazer.utils import strtobool
 from pystargazer.utils import get_option as _get_option
 
 
@@ -48,6 +47,24 @@ class Video:
     scheduled_start_time: Optional[datetime.datetime] = None
     actual_start_time: Optional[datetime.datetime] = None
 
+    def dump(self):
+        state_dict = asdict(self)
+        state_dict["type"] = self.type.name
+        state_dict["scheduled_start_time"] = datetime.datetime.timestamp(dt) \
+            if (dt := self.scheduled_start_time) else None
+        state_dict["actual_start_time"] = datetime.datetime.timestamp(dt) if (dt := self.actual_start_time) else None
+        return state_dict
+
+    @classmethod
+    def load(cls, state_dict):
+        _state_dict = state_dict.copy()
+        _state_dict["type"] = ResourceType[state_dict["type"]]
+        _state_dict["scheduled_start_time"] = datetime.datetime.fromtimestamp(ts) \
+            if (ts := state_dict["scheduled_start_time"]) else None
+        _state_dict["actual_start_time"] = datetime.datetime.fromtimestamp(ts) \
+            if (ts := state_dict["actual_start_time"]) else None
+        return cls(**_state_dict)
+
 
 @dataclass
 class YoutubeEvent:
@@ -70,6 +87,21 @@ scheduler = app.scheduler
 http = AsyncClient()
 
 get_option = _get_option(app, "youtube")
+
+
+@app.on_startup
+async def startup():
+    await load_state()
+
+
+@app.on_shutdown
+async def shutdown():
+    await dump_state()
+
+
+@app.scheduled("interval", minutes=1)
+async def state_snapshot():
+    await dump_state()
 
 
 # use one-shot schedule instead of on_startup to ensure callback can handle validation in time
@@ -205,7 +237,8 @@ async def subscribe(channel_id: str):
     if channel_list.get(channel_id) is not None:
         raise ValueError("Conflict channel id.")
 
-    channel_list[channel_id] = []
+    if channel_id not in channel_list:
+        channel_list[channel_id] = []
     await _subscribe(channel_id)
 
 
@@ -378,3 +411,46 @@ async def cleanup():
     channel_list.clear()
     scheduler.remove_job("ytb_tick")
     scheduler.remove_job("ytb_renewal")
+
+
+async def load_state():
+    global channel_list
+    global read_list
+    try:
+        channel_state = await app.plugin_state.get("youtube_live_state")
+    except KeyError:
+        logging.warning("Missing live state dict. Ignoring.")
+        channel_state = KVPair("youtube_live_state", {})
+    try:
+        read_state = await app.plugin_state.get("youtube_video_state")
+    except KeyError:
+        logging.warning("Missing video state dict. Ignoring.")
+        read_state = KVPair("youtube_video_state", {"videos": []})
+
+    for channel, videos in channel_state.value.items():
+        for _video in videos:
+            video = Video.load(_video)
+            await query_video(video)
+            if not video.actual_start_time:
+                logging.debug(f"Load saved broadcast: {video}")
+                event_reminder = YoutubeEvent(type=video.type, event=YoutubeEventType.REMINDER,
+                                              channel=channel, video=video)
+
+                # set a reminder
+                job_id = f"reminder_{channel}_{video.video_id}"
+                scheduler.add_job(partial(send_youtube_event, event_reminder), trigger="cron", id=job_id,
+                                  year=video.scheduled_start_time.year, month=video.scheduled_start_time.month,
+                                  day=video.scheduled_start_time.day, hour=video.scheduled_start_time.hour,
+                                  minute=video.scheduled_start_time.minute,
+                                  second=video.scheduled_start_time.second)
+                channel_list[channel].append(video)
+
+    read_list = [Video.load(video) for video in read_state.value["videos"]]
+
+
+async def dump_state():
+    channel_state = {channel: [video.dump() for video in videos] for channel, videos in channel_list.items()}
+    read_state = {"videos": [video.dump() for video in read_list]}
+
+    await app.plugin_state.put(KVPair("youtube_live_state", channel_state))
+    await app.plugin_state.put(KVPair("youtube_video_state", read_state))
