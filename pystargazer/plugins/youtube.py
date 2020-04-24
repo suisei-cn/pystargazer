@@ -59,10 +59,10 @@ class Video:
     def load(cls, state_dict):
         _state_dict = state_dict.copy()
         _state_dict["type"] = ResourceType[state_dict["type"]]
-        _state_dict["scheduled_start_time"] = datetime.datetime.fromtimestamp(ts) if (
-            ts := state_dict["scheduled_start_time"]) else None
-        _state_dict["actual_start_time"] = datetime.datetime.fromtimestamp(ts) if (
-            ts := state_dict["actual_start_time"]) else None
+        _state_dict["scheduled_start_time"] = datetime.datetime.fromtimestamp(ts) \
+            if (ts := state_dict["scheduled_start_time"]) else None
+        _state_dict["actual_start_time"] = datetime.datetime.fromtimestamp(ts) \
+            if (ts := state_dict["actual_start_time"]) else None
         return cls(**_state_dict)
 
 
@@ -95,7 +95,7 @@ async def startup():
 
 
 @app.on_shutdown
-async def startup():
+async def shutdown():
     await dump_state()
 
 
@@ -237,7 +237,8 @@ async def subscribe(channel_id: str):
     if channel_list.get(channel_id) is not None:
         raise ValueError("Conflict channel id.")
 
-    channel_list[channel_id] = []
+    if channel_id not in channel_list:
+        channel_list[channel_id] = []
     await _subscribe(channel_id)
 
 
@@ -418,10 +419,12 @@ async def load_state():
     try:
         channel_state = await app.plugin_state.get("youtube_live_state")
     except KeyError:
+        logging.warning("Missing live state dict. Ignoring.")
         channel_state = KVPair("youtube_live_state", {})
     try:
         read_state = await app.plugin_state.get("youtube_video_state")
     except KeyError:
+        logging.warning("Missing video state dict. Ignoring.")
         read_state = KVPair("youtube_video_state", {"videos": []})
 
     for channel, videos in channel_state.value.items():
@@ -429,6 +432,7 @@ async def load_state():
             video = Video.load(_video)
             await query_video(video)
             if not video.actual_start_time:
+                logging.debug(f"Load saved broadcast: {video}")
                 event_reminder = YoutubeEvent(type=video.type, event=YoutubeEventType.REMINDER,
                                               channel=channel, video=video)
 
