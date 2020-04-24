@@ -346,7 +346,7 @@ async def tick():
             if not video.scheduled_start_time:
                 remove_list.append((channel_id, video))
                 logging.warning(f"Video doesn't have scheduled start time: {video}. Deleting.")
-            elif now >= video.scheduled_start_time:
+            elif (now - video.scheduled_start_time).total_seconds() > -600:
                 if not await query_video(video):
                     remove_list.append((channel_id, video))
                     logging.warning("Video query failure. Deleting")
