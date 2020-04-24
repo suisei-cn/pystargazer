@@ -292,6 +292,10 @@ class WebsubEndpoint(HTTPEndpoint):
                 await send_youtube_event(event)
                 read_list.append(video)
         elif video.type == ResourceType.BROADCAST and not video.actual_start_time:
+            if not video.scheduled_start_time:
+                # malformed video object
+                return Response()
+
             if old_video:
                 channel_list[channel_id].remove(old_video)
 
