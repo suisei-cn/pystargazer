@@ -42,6 +42,6 @@ async def hihihi(request: Request):
 
 @app.scheduled("interval", hours=3)
 async def eeehihihi():
-    if get_option("disabled"):
+    if await get_option("disabled"):
         return
     await app.send_event(Event("dummy_suisei", "suisei", {}))
