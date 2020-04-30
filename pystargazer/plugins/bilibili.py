@@ -49,7 +49,7 @@ class Bilibili:
                 break
 
             dyn_description = dyn["description"]
-            dyn_photos = [entry["img_src"] for entry in dyn["pictures"]]
+            dyn_photos = [entry["img_src"] for entry in dyn_pictures] if (dyn_pictures := dyn.get("pictures")) else []
 
             dyn_list.append((dyn_description, dyn_photos))
 
