@@ -45,10 +45,10 @@ class RootEP(HTTPEndpoint):
         try:
             await table.get(key)
         except KeyError:
-            return PlainTextResponse("Conflict", status_code=HTTP_409_CONFLICT)
+            await table.put(KVPair(key, {}))
+            return RedirectResponse(url=urljoin(app.credentials.get("base_url"), key), status_code=HTTP_201_CREATED)
 
-        await table.put(KVPair(key, {}))
-        return RedirectResponse(url=urljoin(app.credentials.get("base_url"), key), status_code=HTTP_201_CREATED)
+        return PlainTextResponse("Conflict", status_code=HTTP_409_CONFLICT)
 
 
 @app.route("/api/{table}/{prime_key}")
