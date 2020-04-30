@@ -108,6 +108,6 @@ async def bilibili_task():
         )
         for name, dyn_set in valid_dyns.items()
         for dyn in dyn_set[1]
-        if dyn[0] == "分享图片"
+        if dyn[0] != "转发动态"
     )
     await asyncio.gather(*(app.send_event(event) for event in events))
