@@ -25,7 +25,7 @@ class RootEP(HTTPEndpoint):
         try:
             table = get_table(request.path_params["table"])
         except KeyError:
-            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
+            return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
 
         keys = []
         # noinspection PyTypeChecker
@@ -39,7 +39,7 @@ class RootEP(HTTPEndpoint):
         try:
             table = get_table(request.path_params["table"])
         except KeyError:
-            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
+            return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
 
         key = (await request.body()).decode("utf-8")
         try:
@@ -57,7 +57,7 @@ class EntryEP(HTTPEndpoint):
         try:
             table = get_table(request.path_params["table"])
         except KeyError:
-            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
+            return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
 
         key = request.path_params["prime_key"]
         try:
@@ -87,7 +87,7 @@ class KeyEP(HTTPEndpoint):
         try:
             table = get_table(request.path_params["table"])
         except KeyError:
-            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
+            return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
 
         prime_key = request.path_params["prime_key"]
         key = request.path_params["key"]
@@ -105,7 +105,7 @@ class KeyEP(HTTPEndpoint):
         try:
             table = get_table(request.path_params["table"])
         except KeyError:
-            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
+            return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
 
         prime_key = request.path_params["prime_key"]
         try:
@@ -126,7 +126,7 @@ class KeyEP(HTTPEndpoint):
         try:
             table = get_table(request.path_params["table"])
         except KeyError:
-            return PlainTextResponse("Not Found", status_code=HTTP_409_CONFLICT)
+            return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
 
         prime_key = request.path_params["prime_key"]
         try:
