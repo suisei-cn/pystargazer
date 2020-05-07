@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass, asdict
 from enum import Enum
 from functools import partial
-from itertools import cycle
+from itertools import cycle, tee
 from typing import Dict, Iterator, List, Optional, Tuple
 from urllib.parse import parse_qs, urljoin, urlparse
 
@@ -39,8 +39,8 @@ class YoutubeEventType(Enum):
 @dataclass
 class Video:
     video_id: str
-    title: str
-    link: str
+    title: str = ""
+    link: str = ""
     type: Optional[ResourceType] = None
     description: str = ""
     thumbnail: str = ""
@@ -64,6 +64,49 @@ class Video:
         _state_dict["actual_start_time"] = datetime.datetime.fromtimestamp(ts) \
             if (ts := state_dict["actual_start_time"]) else None
         return cls(**_state_dict)
+
+    def merge(self, obj):
+        if not isinstance(obj, Video) or self.video_id != obj.video_id:
+            raise ValueError("Object can't be merged.")
+        self.__dict__.update(obj.__dict__)
+
+    async def fetch(self) -> bool:
+        while True:
+            try:
+                r = await http.get("https://www.googleapis.com/youtube/v3/videos", params={
+                    "part": "liveStreamingDetails,snippet",
+                    "fields": "items(liveStreamingDetails,snippet)",
+                    "key": next(token_g),
+                    "id": self.video_id
+                })
+                break
+            except (NetworkError, TimeoutException):
+                pass
+
+        if not (data := r.json()):
+            return False
+
+        try:
+            item = data['items'][0]
+        except IndexError:
+            logging.error(f"Youtube data api malformed response: {data}")
+            return False
+
+        if snippet := item.get("snippet"):
+            self.description = f'{snippet.get("description")} ...'
+            self.thumbnail = thumbnails.get("standard", {"url": None}).get("url") \
+                if (thumbnails := snippet.get("thumbnails")) else None
+
+        if streaming := item.get("liveStreamingDetails"):
+            self.type = ResourceType.BROADCAST
+            if scheduled_start_time := streaming.get("scheduledStartTime"):
+                self.scheduled_start_time = dateutil.parser.parse(scheduled_start_time).astimezone(tz.tzlocal())
+            if actual_start_time := streaming.get("actualStartTime"):
+                self.actual_start_time = dateutil.parser.parse(actual_start_time).astimezone(tz.tzlocal())
+        else:
+            self.type = ResourceType.VIDEO
+
+        return True
 
 
 @dataclass
@@ -186,45 +229,6 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
         await app.send_event(event)
 
 
-async def query_video(video: Video) -> bool:
-    while True:
-        try:
-            r = await http.get("https://www.googleapis.com/youtube/v3/videos", params={
-                "part": "liveStreamingDetails,snippet",
-                "fields": "items(liveStreamingDetails,snippet)",
-                "key": next(token_g),
-                "id": video.video_id
-            })
-            break
-        except (NetworkError, TimeoutException):
-            pass
-
-    if not (data := r.json()):
-        return False
-
-    try:
-        item = data['items'][0]
-    except IndexError:
-        logging.error(f"Youtube data api malformed response: {data}")
-        return False
-
-    if snippet := item.get("snippet"):
-        video.description = f'{snippet.get("description")} ...'
-        video.thumbnail = thumbnails.get("standard", {"url": None}).get("url") \
-            if (thumbnails := snippet.get("thumbnails")) else None
-
-    if streaming := item.get("liveStreamingDetails"):
-        video.type = ResourceType.BROADCAST
-        if scheduled_start_time := streaming.get("scheduledStartTime"):
-            video.scheduled_start_time = dateutil.parser.parse(scheduled_start_time).astimezone(tz.tzlocal())
-        if actual_start_time := streaming.get("actualStartTime"):
-            video.actual_start_time = dateutil.parser.parse(actual_start_time).astimezone(tz.tzlocal())
-    else:
-        video.type = ResourceType.VIDEO
-
-    return True
-
-
 async def _subscribe(channel_id: str, reverse: bool = False):
     while True:
         try:
@@ -284,59 +288,58 @@ class WebsubEndpoint(HTTPEndpoint):
 
     # noinspection PyMethodMayBeStatic
     async def post(self, request: Request):
+        def parse_feed(data: str) -> Tuple[str, str, str, str]:
+            feed = feedparser.parse(data)
+            entry = feed.entries[0]
+            return entry.yt_videoid, entry.link, entry.title, entry.yt_channelid
+
         body = (await request.body()).decode("utf-8")
         logging.debug(body)
         if "deleted-entry" in body:
             return Response()
-        feed = feedparser.parse(body)
-        video_id, video_link = feed.entries[0].yt_videoid, feed.entries[0].link
-        video_title = feed.entries[0].title
 
-        channel_id = feed.entries[0].yt_channelid
-
-        video = Video(video_id=video_id, title=video_title, link=video_link)
+        video_id, video_link, video_title, channel_id = parse_feed(body)
+        video = Video(video_id)
 
         logging.info(f"Adding video {video_id}")
 
-        try:
-            old_video = \
-                next(_video for _video in channel_list[channel_id] if video.video_id == _video.video_id)
-            logging.debug("Duplicate video id detected. Checking...")
-        except StopIteration:
-            old_video = None
-
-        if not await query_video(video):
+        if not await video.fetch():
             logging.warning("Query failure. Ignoring.")
             return Response()
 
-        dup = old_video and all([
-            old_video.title == video.title,
-            old_video.scheduled_start_time == video.scheduled_start_time
-        ])
-
-        if dup:
-            logging.debug("Duplicate video. Ignoring.")
-            return Response()
-
         if video.type == ResourceType.VIDEO:
-            try:
-                old_video = next(_video for _video in read_list if video.video_id == _video.video_id)
-            except StopIteration:
-                old_video = None
-            if not old_video:
-                event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id,
-                                     video=video)
+            # check whether the video is already in the read_list
+            if not next(_video for _video in read_list if video.video_id == _video.video_id):
+                event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id, video=video)
                 await send_youtube_event(event)
                 read_list.append(video)
         elif video.type == ResourceType.BROADCAST and not video.actual_start_time:
             if not video.scheduled_start_time:
-                # malformed video object
+                logging.warning("Malformed video object: missing scheduled start time.")
                 return Response()
 
-            if old_video:
-                channel_list[channel_id].remove(old_video)
+            try:
+                existing_entry = \
+                    next(_video for _video in channel_list[channel_id] if video.video_id == _video.video_id)
+                logging.debug("Duplicate video id detected. Checking...")
+            except StopIteration:
+                existing_entry = None
 
-            channel_list[channel_id].append(video)  # for actual start event
+            dup = existing_entry and all([
+                existing_entry.title == video.title,
+                existing_entry.scheduled_start_time == video.scheduled_start_time
+            ])
+
+            if dup:
+                logging.info("Duplicate entry. Ignoring.")
+                return Response()
+
+            if existing_entry:
+                logging.info("Merging new state into existing entry.")
+                existing_entry.merge(video)
+                video = existing_entry
+            else:
+                channel_list[channel_id].append(video)  # for actual start event
 
             event_schedule = YoutubeEvent(type=video.type, event=YoutubeEventType.SCHEDULE,
                                           channel=channel_id, video=video)
@@ -380,26 +383,49 @@ async def on_delete(obj: KVPair):
 
 @app.scheduled("interval", minutes=1, id="ytb_tick")
 async def tick():
-    remove_list: List[Tuple[str, Video]] = []
-    for channel_id, videos in channel_list.items():
-        for video in videos:
-            now = datetime.datetime.now().replace(tzinfo=tz.tzlocal())
-            if not video.scheduled_start_time:
-                remove_list.append((channel_id, video))
-                logging.warning(f"Video doesn't have scheduled start time: {video}. Deleting.")
-            elif (now - video.scheduled_start_time).total_seconds() > -600:
-                if not await query_video(video):
-                    remove_list.append((channel_id, video))
-                    logging.warning("Video query failure. Deleting")
-                if video.actual_start_time:
-                    if (now - video.actual_start_time).total_seconds() < 10800:
-                        # broadcast has started
-                        event = YoutubeEvent(type=ResourceType.BROADCAST, event=YoutubeEventType.LIVE,
-                                             channel=channel_id, video=video)
-                        await send_youtube_event(event)
-                    remove_list.append((channel_id, video))
-    for channel_id, video in remove_list:
-        channel_list[channel_id].remove(video)
+    def batch_remove(iterable: Iterator[Tuple[str, Video]]):
+        for ch_id, video in iterable:
+            channel_list[ch_id].remove(video)
+
+    def split(seq, condition):
+        l1, l2 = tee((condition(item), item) for item in seq)
+        return (i for p, i in l1 if p), (i for p, i in l2 if not p)
+
+    async def check_send(ch_id, video) -> bool:
+        """ send message and return is_delete """
+        now = datetime.datetime.now().replace(tzinfo=tz.tzlocal())
+        if not video.scheduled_start_time:
+            logging.warning(f"Video {video.video_id} doesn't have scheduled start time.")
+            return True
+        if (now - video.scheduled_start_time).total_seconds() > -600 and video.actual_start_time:
+            if (now - video.actual_start_time).total_seconds() < 10800: # broadcast has started
+                event = YoutubeEvent(type=ResourceType.BROADCAST, event=YoutubeEventType.LIVE,
+                                     channel=ch_id, video=video)
+                await send_youtube_event(event)
+            return True
+        return False
+
+    # batch update objects
+    video_list: List[Tuple[str, Video]] = [(channel, video)
+                                           for channel, videos in channel_list.items()
+                                           for video in videos]
+    # noinspection PyTypeChecker
+    fetch_map: List[Tuple[Tuple[str, Video], bool]] = zip(
+        video_list,
+        (await asyncio.gather(*(video.fetch() for _, video in video_list))))
+    # remove failed objects
+    success_map: List[Tuple[str, Video]]
+    error_map: List[Tuple[str, Video]]
+    success_map, error_map = [[x[0] for x in iterable] for iterable in split(fetch_map, lambda x: x[1])]
+    # noinspection PyTypeChecker
+    send_map: Iterator[Tuple[Tuple[str, Video], bool]] = zip(
+        success_map,
+        (await asyncio.gather(*(check_send(*video_tuple) for video_tuple in success_map)))
+    )
+    remove_map: Iterator[Tuple[str, Video]] = map(lambda x: x[0], filter(lambda x: x[1], send_map))
+
+    batch_remove(error_map)
+    batch_remove(remove_map)
 
 
 @app.scheduled("interval", hours=8, id="ytb_renewal")
@@ -434,7 +460,7 @@ async def load_state():
     for channel, videos in channel_state.value.items():
         for _video in videos:
             video = Video.load(_video)
-            await query_video(video)
+            await video.fetch()
             if not video.actual_start_time:
                 logging.debug(f"Load saved broadcast: {video}")
                 event_reminder = YoutubeEvent(type=video.type, event=YoutubeEventType.REMINDER,
