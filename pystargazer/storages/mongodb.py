@@ -28,9 +28,6 @@ class MongoKVContainer(AbstractKVContainer):
         self.db: AgnosticDatabase = self.client[db]
         self.collections: AgnosticCollection = self.db[collection]
 
-    async def _init(self):
-        await self.collections.create_index("key", unique=True)
-
     async def get(self, key: str) -> KVPair:
         doc: dict = await self.collections.find_one({"key": key})
         return KVPair.load(doc) if doc else None
@@ -46,14 +43,6 @@ class MongoKVContainer(AbstractKVContainer):
         else:
             await self.collections.insert_one(obj.dump())
             return None, obj
-
-
-# noinspection PyUnresolvedReferences,PyProtectedMember
-@app.on_startup
-async def init_storage():
-    for obj in app.__dict__.values():
-        if isinstance(obj, KVContainer):
-            await obj._init()
 
 
 def get_container():
