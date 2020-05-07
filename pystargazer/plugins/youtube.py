@@ -406,9 +406,9 @@ async def tick():
                                            for channel, videos in channel_list.items()
                                            for video in videos]
     # noinspection PyTypeChecker
-    fetch_map: Iterator[Tuple[Tuple[str, Video], bool]] = zip(
+    fetch_map: List[Tuple[Tuple[str, Video], bool]] = zip(
         video_list,
-        asyncio.gather(*(video.fetch() for _, video in video_list)))
+        (await asyncio.gather(*(video.fetch() for _, video in video_list))))
     # remove failed objects
     success_map: Iterator[Tuple[str, Video]]
     error_map: Iterator[Tuple[str, Video]]
@@ -416,7 +416,7 @@ async def tick():
     # noinspection PyTypeChecker
     send_map: Iterator[Tuple[Tuple[str, Video], bool]] = zip(
         success_map,
-        asyncio.gather(*(check_send(*video_tuple) for video_tuple in success_map))
+        (await asyncio.gather(*(check_send(*video_tuple) for video_tuple in success_map)))
     )
     remove_map: Iterator[Tuple[str, Video]] = map(lambda x: x[0], filter(lambda x: x[1], send_map))
 
