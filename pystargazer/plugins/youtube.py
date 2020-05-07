@@ -88,7 +88,7 @@ class Video:
 
         try:
             item = data['items'][0]
-        except IndexError:
+        except (IndexError, KeyError):
             logging.error(f"Youtube data api malformed response: {data}")
             return False
 
