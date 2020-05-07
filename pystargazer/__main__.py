@@ -25,6 +25,8 @@ plugins = {plugin.__name__: plugin for plugin in
 
 if not debug:
     logging.getLogger("apscheduler").setLevel(logging.WARNING)
+else:
+    logging.basicConfig(level=logging.DEBUG)
 app.scheduler.start()
 app.init_starlette(debug)
 
