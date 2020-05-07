@@ -47,6 +47,9 @@ class Video:
     scheduled_start_time: Optional[datetime.datetime] = None
     actual_start_time: Optional[datetime.datetime] = None
 
+    def __post_init__(self):
+        self.link = f"https://www.youtube.com/watch?v={self.video_id}"
+
     def dump(self):
         state_dict = asdict(self)
         state_dict["type"] = self.type.name
@@ -93,6 +96,7 @@ class Video:
             return False
 
         if snippet := item.get("snippet"):
+            self.title = f'{snippet.get("title")}'
             self.description = f'{snippet.get("description")} ...'
             self.thumbnail = thumbnails.get("standard", {"url": None}).get("url") \
                 if (thumbnails := snippet.get("thumbnails")) else None
@@ -409,7 +413,7 @@ async def tick():
     video_map, malformed_map = split(video_list, lambda x: x[1].scheduled_start_time)
     pending_map = list(filter(lambda x: (now-x[1].scheduled_start_time).total_seconds() > -600, video_map))
     # noinspection PyTypeChecker
-    fetch_map: List[Tuple[Tuple[str, Video], bool]] = zip(
+    fetch_map: Iterator[Tuple[Tuple[str, Video], bool]] = zip(
         pending_map,
         (await asyncio.gather(*(video.fetch() for _, video in pending_map))))
     # remove failed objects
