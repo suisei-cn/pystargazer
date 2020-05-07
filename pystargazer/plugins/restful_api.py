@@ -130,12 +130,15 @@ class KeyEP(HTTPEndpoint):
 
         prime_key = request.path_params["prime_key"]
         try:
-            vtuber = await table.get(prime_key)
+            prime_value = await table.get(prime_key)
         except KeyError:
             return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
+        
         key = request.path_params["key"]
-        if vtuber.value.get(key) is None:
+        if prime_value.value.get(key) is None:
             return PlainTextResponse("Not Found", status_code=HTTP_404_NOT_FOUND)
 
-        await table.put(vtuber)
+        prime_value.value.pop(key)
+
+        await table.put(prime_value)
         return Response()
