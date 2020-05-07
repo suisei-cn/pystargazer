@@ -91,6 +91,11 @@ get_option = _get_option(app, "youtube")
 
 @app.on_startup
 async def startup():
+    global channel_list
+    # noinspection PyTypeChecker
+    async for vtuber in app.vtubers.has_field("youtube"):
+        channel_list[vtuber.value["youtube"]] = []
+
     await load_state()
 
 
@@ -236,9 +241,6 @@ async def _subscribe(channel_id: str, reverse: bool = False):
 
 
 async def subscribe(channel_id: str):
-    if channel_list.get(channel_id) is not None:
-        raise ValueError("Conflict channel id.")
-
     if channel_id not in channel_list:
         channel_list[channel_id] = []
     await _subscribe(channel_id)
