@@ -30,7 +30,7 @@ setup(
         ],
         extras_require={
             'mongo': ['motor'],
-            'files': ['tinydb']
+            'files': ['tinydb==3.15.2']
         },
         python_requires='>=3.8'
 )

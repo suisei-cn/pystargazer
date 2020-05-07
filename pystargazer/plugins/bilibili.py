@@ -1,7 +1,8 @@
 import asyncio
 import json
+import logging
 
-from httpx import AsyncClient
+from httpx import AsyncClient, HTTPError
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
@@ -23,7 +24,12 @@ class Bilibili:
             "need_top": 0
         }
 
-        r = (await self.client.get(url, params=payload)).json()
+        try:
+            r = (await self.client.get(url, params=payload)).json()
+        except HTTPError:
+            logging.error("Bilibili api fetch error.")
+            return since_id, []
+
         # noinspection PyTypeChecker
         cards = r["data"]["cards"]
 
@@ -33,6 +39,7 @@ class Bilibili:
         counter = 0
 
         for raw_card in cards:
+            msg_type = raw_card["desc"]["type"]
             card = json.loads(raw_card["card"])
             if not (dyn := card.get("item")):
                 continue
