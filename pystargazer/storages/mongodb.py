@@ -24,7 +24,7 @@ class MongoKVContainer(AbstractKVContainer):
         host = parsed_url.netloc
         db, collection = parsed_url.path[1:].split("/")
 
-        self.client: AgnosticClient = motor.motor_asyncio.AsyncIOMotorClient(host)
+        self.client: AgnosticClient = motor.motor_asyncio.AsyncIOMotorClient(f"mongodb://{host}/{db}")
         self.db: AgnosticDatabase = self.client[db]
         self.collections: AgnosticCollection = self.db[collection]
 
