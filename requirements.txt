@@ -6,4 +6,4 @@ apscheduler
 feedparser
 python-dateutil
 motor
-tinydb
+tinydb==3.15.2
