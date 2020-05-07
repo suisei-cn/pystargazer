@@ -134,6 +134,11 @@ get_option = _get_option(app, "youtube")
 
 @app.on_startup
 async def startup():
+    global channel_list
+    # noinspection PyTypeChecker
+    async for vtuber in app.vtubers.has_field("youtube"):
+        channel_list[vtuber.value["youtube"]] = []
+
     await load_state()
 
 
@@ -150,6 +155,8 @@ async def state_snapshot():
 # use one-shot schedule instead of on_startup to ensure callback can handle validation in time
 @app.scheduled(None, misfire_grace_time=5)
 async def init_subscribe():
+    await asyncio.sleep(5)
+
     channel_ids: List[str] = []
     # noinspection PyTypeChecker
     async for vtuber in app.vtubers.has_field("youtube"):
@@ -238,9 +245,6 @@ async def _subscribe(channel_id: str, reverse: bool = False):
 
 
 async def subscribe(channel_id: str):
-    if channel_list.get(channel_id) is not None:
-        raise ValueError("Conflict channel id.")
-
     if channel_id not in channel_list:
         channel_list[channel_id] = []
     await _subscribe(channel_id)
