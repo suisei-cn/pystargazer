@@ -25,12 +25,11 @@ plugins = {plugin.__name__: plugin for plugin in
 
 if not debug:
     logging.getLogger("apscheduler").setLevel(logging.WARNING)
-else:
-    logging.basicConfig(level=logging.DEBUG)
 app.scheduler.start()
 app.init_starlette(debug)
 
-config = Config(app.starlette, host=host, port=port, lifespan="on", access_log=access_log)
+config = Config(app.starlette, host=host, port=port, lifespan="on",
+                access_log=access_log, log_level=logging.DEBUG if debug else None)
 server = Server(config)
 # noinspection PyProtectedMember
 app.loop.run_until_complete(server.serve())
