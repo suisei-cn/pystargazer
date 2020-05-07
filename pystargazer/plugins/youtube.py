@@ -393,26 +393,25 @@ async def tick():
 
     async def check_send(ch_id, video) -> bool:
         """ send message and return is_delete """
-        now = datetime.datetime.now().replace(tzinfo=tz.tzlocal())
-        if not video.scheduled_start_time:
-            logging.warning(f"Video {video.video_id} doesn't have scheduled start time.")
-            return True
-        if (now - video.scheduled_start_time).total_seconds() > -600 and video.actual_start_time:
-            if (now - video.actual_start_time).total_seconds() < 10800: # broadcast has started
+        if video.actual_start_time:
+            if (now - video.actual_start_time).total_seconds() < 10800:  # broadcast has started
                 event = YoutubeEvent(type=ResourceType.BROADCAST, event=YoutubeEventType.LIVE,
                                      channel=ch_id, video=video)
                 await send_youtube_event(event)
             return True
         return False
 
+    now = datetime.datetime.now().replace(tzinfo=tz.tzlocal())
     # batch update objects
     video_list: List[Tuple[str, Video]] = [(channel, video)
                                            for channel, videos in channel_list.items()
                                            for video in videos]
+    video_map, malformed_map = split(video_list, lambda x: x[1].scheduled_start_time)
+    pending_map = list(filter(lambda x: (now-x[1].scheduled_start_time).total_seconds() > -600, video_map))
     # noinspection PyTypeChecker
     fetch_map: List[Tuple[Tuple[str, Video], bool]] = zip(
-        video_list,
-        (await asyncio.gather(*(video.fetch() for _, video in video_list))))
+        pending_map,
+        (await asyncio.gather(*(video.fetch() for _, video in pending_map))))
     # remove failed objects
     success_map: List[Tuple[str, Video]]
     error_map: List[Tuple[str, Video]]
@@ -424,6 +423,7 @@ async def tick():
     )
     remove_map: Iterator[Tuple[str, Video]] = map(lambda x: x[0], filter(lambda x: x[1], send_map))
 
+    batch_remove(malformed_map)
     batch_remove(error_map)
     batch_remove(remove_map)
 
