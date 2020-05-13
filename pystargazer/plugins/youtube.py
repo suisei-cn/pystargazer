@@ -62,9 +62,9 @@ class Video:
     def load(cls, state_dict):
         _state_dict = state_dict.copy()
         _state_dict["type"] = ResourceType[state_dict["type"]]
-        _state_dict["scheduled_start_time"] = datetime.datetime.fromtimestamp(ts) \
+        _state_dict["scheduled_start_time"] = datetime.datetime.fromtimestamp(ts).astimezone(tz.tzlocal()) \
             if (ts := state_dict["scheduled_start_time"]) else None
-        _state_dict["actual_start_time"] = datetime.datetime.fromtimestamp(ts) \
+        _state_dict["actual_start_time"] = datetime.datetime.fromtimestamp(ts).astimezone(tz.tzlocal()) \
             if (ts := state_dict["actual_start_time"]) else None
         return cls(**_state_dict)
 
