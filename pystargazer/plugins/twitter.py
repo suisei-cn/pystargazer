@@ -1,6 +1,7 @@
 import asyncio
+import logging
 
-from httpx import AsyncClient, Headers
+from httpx import AsyncClient, HTTPError, Headers
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
@@ -27,7 +28,11 @@ class Twitter:
             "include_rts": True
         }
 
-        r = (await self.client.get(url, params=payload)).json()
+        try:
+            r = (await self.client.get(url, params=payload)).json()
+        except HTTPError:
+            logging.error("Twitter api fetch error.")
+            return since_id, None
         if not r:
             return since_id, None
 
