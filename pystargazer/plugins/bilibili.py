@@ -58,7 +58,7 @@ class Bilibili:
             if not (dyn := card.get("item")):
                 return dyn_id
 
-            dyn_text = dyn["content"][:140] + ("..." if len(dyn["content"]) > 140 else "")
+            dyn_text = dyn["content"]
             dyn_photos = []
         elif dyn_type == 8:
             dyn_text = "\n".join([
