@@ -50,7 +50,7 @@ class Bilibili:
             }
             rt_dyn = Bilibili._parse(rt_dyn_raw)
 
-            if not rt_dyn:
+            if not isinstance(rt_dyn, tuple):
                 return dyn_id
             dyn_text = f'{dyn["content"]}|RT {rt_dyn[1][0]}'
             dyn_photos = rt_dyn[1][1]
@@ -95,7 +95,7 @@ class Bilibili:
         counter = 0
 
         for raw_card in cards:
-            if len(rtn := self._parse(raw_card)) > 1:
+            if isinstance((rtn := self._parse(raw_card)), tuple):
                 dyn_id, dyn_entry = rtn
                 if dyn_id == since_id:
                     break
