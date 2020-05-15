@@ -11,9 +11,65 @@ from pystargazer.models import Event, KVPair
 from pystargazer.utils import get_option as _get_option
 
 
+event_map = {
+    1: "bili_rt_dyn",
+    2: "bili_img_dyn",
+    4: "bili_plain_dyn",
+    8: "bili_video"
+}
+
+
 class Bilibili:
     def __init__(self):
         self.client = AsyncClient()
+
+    @staticmethod
+    def _parse(raw_card):
+        dyn_type = raw_card["desc"]["type"]
+        dyn_id = raw_card["desc"]["dynamic_id"]
+        card = json.loads(raw_card["card"])
+        if dyn_type == 2:
+            if not (dyn := card.get("item")):
+                return dyn_id
+
+            dyn_text = dyn["description"]
+            dyn_photos = [entry["img_src"] for entry in dyn_pictures] if (dyn_pictures := dyn.get("pictures")) else []
+        elif dyn_type == 1:
+            if not (dyn := card.get("item")):
+                return dyn_id
+
+            if not (raw_dyn_orig := card.get("origin")):
+                return dyn_id
+
+            rt_dyn_raw = {
+                "desc": {
+                    "type": dyn["orig_type"],
+                    "dynamic_id": dyn["orig_dy_id"]
+                },
+                "card": raw_dyn_orig
+            }
+            rt_dyn = Bilibili._parse(rt_dyn_raw)
+
+            if not rt_dyn:
+                return dyn_id
+            dyn_text = f'{dyn["content"]}|RT {rt_dyn[1][0]}'
+            dyn_photos = rt_dyn[1][1]
+        elif dyn_type == 4:
+            if not (dyn := card.get("item")):
+                return dyn_id
+
+            dyn_text = dyn["content"][:140] + ("..." if len(dyn["content"]) > 140 else "")
+            dyn_photos = []
+        elif dyn_type == 8:
+            dyn_text = "\n".join([
+                card["title"],
+                f'https://www.bilibili.com/video/av{card["aid"]}'
+            ])
+            dyn_photos = [card["pic"]]
+        else:
+            return dyn_id
+
+        return dyn_id, (dyn_text, dyn_photos, dyn_type)
 
     async def fetch(self, user_id: int, since_id: int = 1):
         url = "https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history"
@@ -39,12 +95,13 @@ class Bilibili:
         counter = 0
 
         for raw_card in cards:
-            msg_type = raw_card["desc"]["type"]
-            card = json.loads(raw_card["card"])
-            if not (dyn := card.get("item")):
-                continue
-            if not (dyn_id := dyn.get("id")):
-                continue
+            if len(rtn := self._parse(raw_card)) > 1:
+                dyn_id, dyn_entry = rtn
+                if dyn_id == since_id:
+                    break
+                dyn_list.append(dyn_entry)
+            else:
+                dyn_id = rtn
 
             counter += 1
             if counter == 1:
@@ -52,13 +109,6 @@ class Bilibili:
             elif counter == 6:
                 break
 
-            if dyn_id == since_id:
-                break
-
-            dyn_description = dyn["description"]
-            dyn_photos = [entry["img_src"] for entry in dyn_pictures] if (dyn_pictures := dyn.get("pictures")) else []
-
-            dyn_list.append((dyn_description, dyn_photos))
 
         return rtn_id, dyn_list
 
@@ -109,7 +159,7 @@ async def bilibili_task():
 
     events = (
         Event(
-            "bili_dyn",
+            event_map.get(dyn[2], f"bili_{dyn[2]}"),
             name,
             {"text": dyn[0], "images": dyn[1]}
         )

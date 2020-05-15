@@ -33,16 +33,16 @@ class Twitter:
 
         tweet_list = []
         for _, tweet in zip(range(5), r):
+            is_rt = "retweeted_status" in tweet.keys()
             tweet_text = tweet["text"]
             tweet_media = tweet["entities"].get("media", [])
             tweet_photos = [medium["media_url"] for medium in tweet_media if medium["type"] == "photo"]
-            tweet_list.append((tweet_text, tweet_photos))
+            tweet_list.append((tweet_text, tweet_photos, is_rt))
 
         return r[0]["id"], tweet_list
 
 
 twitter = Twitter(app.credentials.get("twitter"))
-
 
 get_option = _get_option(app, "twitter")
 
@@ -88,7 +88,7 @@ async def twitter_task():
 
     events = (
         Event(
-            "tweet",
+            "t_rt" if tweet[2] else "t_tweet",
             name,
             {"text": tweet[0], "images": tweet[1]}
         )
