@@ -103,6 +103,9 @@ class Bilibili:
             else:
                 dyn_id = rtn
 
+            if dyn_id == since_id:
+                break
+
             counter += 1
             if counter == 1:
                 rtn_id = dyn_id
