@@ -226,7 +226,7 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
                 "title": video.title,
                 "description": video.description,
                 "link": video.link,
-                "images": [video.thumbnail],
+                "images": [],   # we can only get the default channel cover at this time.
                 "scheduled_start_time": scheduled_start_time_print,
             })
     if event:
