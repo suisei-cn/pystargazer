@@ -52,7 +52,7 @@ class Bilibili:
 
             if not isinstance(rt_dyn, tuple):
                 return dyn_id
-            dyn_text = f'{dyn["content"]}|RT {rt_dyn[1][0]}'
+            dyn_text = f'{dyn["content"]}\nRT {rt_dyn[1][0]}'
             dyn_photos = rt_dyn[1][1]
         elif dyn_type == 4:
             if not (dyn := card.get("item")):
