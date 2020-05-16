@@ -339,11 +339,12 @@ class WebsubEndpoint(HTTPEndpoint):
             if scheduler.get_job(job_id):
                 scheduler.remove_job(job_id=job_id)
             reminder_time = video.scheduled_start_time - datetime.timedelta(minutes=30)
-            scheduler.add_job(partial(send_youtube_event, event_reminder), trigger="cron", id=job_id,
-                              year=reminder_time.year, month=reminder_time.month,
-                              day=reminder_time.day, hour=reminder_time.hour,
-                              minute=reminder_time.minute,
-                              second=reminder_time.second)
+            if reminder_time > datetime.datetime.now().replace(tzinfo=tz.tzlocal()):
+                scheduler.add_job(partial(send_youtube_event, event_reminder), trigger="cron", id=job_id,
+                                  year=reminder_time.year, month=reminder_time.month,
+                                  day=reminder_time.day, hour=reminder_time.hour,
+                                  minute=reminder_time.minute,
+                                  second=reminder_time.second)
 
             # for scheduled
             await send_youtube_event(event_schedule)
@@ -457,11 +458,13 @@ async def load_state():
 
                 # set a reminder
                 job_id = f"reminder_{channel}_{video.video_id}"
-                scheduler.add_job(partial(send_youtube_event, event_reminder), trigger="cron", id=job_id,
-                                  year=video.scheduled_start_time.year, month=video.scheduled_start_time.month,
-                                  day=video.scheduled_start_time.day, hour=video.scheduled_start_time.hour,
-                                  minute=video.scheduled_start_time.minute,
-                                  second=video.scheduled_start_time.second)
+                reminder_time = video.scheduled_start_time - datetime.timedelta(minutes=30)
+                if reminder_time > datetime.datetime.now().replace(tzinfo=tz.tzlocal()):
+                    scheduler.add_job(partial(send_youtube_event, event_reminder), trigger="cron", id=job_id,
+                                      year=reminder_time.year, month=reminder_time.month,
+                                      day=reminder_time.day, hour=reminder_time.hour,
+                                      minute=reminder_time.minute,
+                                      second=reminder_time.second)
                 channel_list[channel].append(video)
 
     read_list = [Video.load(video) for video in read_state.value["videos"]]
