@@ -30,10 +30,10 @@ class ResourceType(Enum):
 
 
 class YoutubeEventType(Enum):
-    PUBLISH = "publish"
-    REMINDER = "reminder"
-    SCHEDULE = "schedule"
-    LIVE = "live"
+    PUBLISH = "ytb_video"
+    REMINDER = "ytb_reminder"
+    SCHEDULE = "ytb_sched"
+    LIVE = "ytb_live"
 
 
 @dataclass
@@ -193,44 +193,25 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
     vtuber = await get_vtuber(ytb_event.channel)
     video = ytb_event.video
 
-    event: Optional[Event] = None
-    if ytb_event.type == ResourceType.VIDEO:
-        event = Event("ytb_video", vtuber.key, {
-            "title": video.title,
-            "description": video.description,
-            "images": [video.thumbnail],
-            "link": video.link
-        })
-    elif ytb_event.type == ResourceType.BROADCAST:
-        scheduled_start_time_print = video.scheduled_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")
-        if ytb_event.event == YoutubeEventType.LIVE:
-            actual_start_time_print = video.actual_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")
-            event = Event("ytb_live", vtuber.key, {
-                "title": video.title,
-                "description": video.description,
-                "link": video.link,
-                "images": [video.thumbnail],
-                "scheduled_start_time": scheduled_start_time_print,
-                "actual_start_time": actual_start_time_print
-            })
-        elif ytb_event.event == YoutubeEventType.REMINDER:
-            event = Event("ytb_reminder", vtuber.key, {
-                "title": video.title,
-                "description": video.description,
-                "link": video.link,
-                "images": [video.thumbnail],
-                "scheduled_start_time": scheduled_start_time_print,
-            })
-        elif ytb_event.event == YoutubeEventType.SCHEDULE:
-            event = Event("ytb_sched", vtuber.key, {
-                "title": video.title,
-                "description": video.description,
-                "link": video.link,
-                "images": [],   # we can only get the default channel cover at this time.
-                "scheduled_start_time": scheduled_start_time_print,
-            })
-    if event:
-        await app.send_event(event)
+    scheduled_start_time_print = video.scheduled_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")\
+        if video.scheduled_start_time else None
+    actual_start_time_print = video.actual_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")\
+        if video.actual_start_time else None
+
+    body = {
+        "title": video.title,
+        "description": video.description,
+        "link": video.link,
+        "images": [video.thumbnail] if ytb_event.event != YoutubeEventType.SCHEDULE else []
+    }
+    if scheduled_start_time_print:
+        body["scheduled_start_time"] = scheduled_start_time_print
+    if actual_start_time_print:
+        body["actual_start_time"] = actual_start_time_print
+
+    event = Event(ytb_event.event.value, vtuber.key, body)
+
+    await app.send_event(event)
 
 
 async def _subscribe(channel_id: str, reverse: bool = False):
