@@ -1,7 +1,9 @@
 import asyncio
 import json
 import logging
+from typing import Optional, Union
 
+import fastjsonschema
 from httpx import AsyncClient, HTTPError
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
@@ -10,7 +12,6 @@ from pystargazer.app import app
 from pystargazer.models import Event, KVPair
 from pystargazer.utils import get_option as _get_option
 
-
 event_map = {
     1: "bili_rt_dyn",
     2: "bili_img_dyn",
@@ -18,28 +19,169 @@ event_map = {
     8: "bili_video"
 }
 
+card_schema = fastjsonschema.compile({
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "desc": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "number"
+                },
+                "dynamic_id": {
+                    "type": "number"
+                }
+            },
+            "required": [
+                "type",
+                "dynamic_id"
+            ]
+        },
+        "card": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "desc",
+        "card"
+    ]
+})
+
+pic_schema = fastjsonschema.compile({
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "item": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "pictures": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "img_src": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "img_src"
+                        ]
+                    }
+                }
+            },
+            "required": [
+                "description",
+                "pictures"
+            ]
+        }
+    },
+    "required": [
+        "item"
+    ]
+})
+
+forward_schema = fastjsonschema.compile({
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "item": {
+            "type": "object",
+            "properties": {}
+        },
+        "origin": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "item",
+        "origin"
+    ]
+})
+
+plain_schema = fastjsonschema.compile({
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "object",
+    "properties": {
+        "item": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "content"
+            ]
+        }
+    },
+    "required": [
+        "item"
+    ]
+})
+
+video_schema = fastjsonschema.compile({
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "aid": {
+      "type": "number"
+    },
+    "pic": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "aid",
+    "pic",
+    "title"
+  ]
+})
+
 
 class Bilibili:
     def __init__(self):
         self.client = AsyncClient()
 
     @staticmethod
-    def _parse(raw_card):
+    def _parse(raw_card) -> Optional[Union[int, tuple]]:
+        try:
+            card_schema(raw_card)
+            card = json.loads(raw_card["card"])
+        except (json.JSONDecodeError, fastjsonschema.JsonSchemaException):
+            logging.error(f"Malformed Bilibili dynamic card: {raw_card}")
+            return None
+
         dyn_type = raw_card["desc"]["type"]
         dyn_id = raw_card["desc"]["dynamic_id"]
-        card = json.loads(raw_card["card"])
+
         if dyn_type == 2:
-            if not (dyn := card.get("item")):
+            try:
+                pic_schema(card)
+            except fastjsonschema.JsonSchemaException:
+                logging.error(f"Malformed Bilibili picture dynamic: {card}")
                 return dyn_id
+
+            dyn = card["item"]
 
             dyn_text = dyn["description"]
-            dyn_photos = [entry["img_src"] for entry in dyn_pictures] if (dyn_pictures := dyn.get("pictures")) else []
+            dyn_photos = [entry["img_src"] for entry in dyn["pictures"]]
         elif dyn_type == 1:
-            if not (dyn := card.get("item")):
+            try:
+                forward_schema(card)
+            except fastjsonschema.JsonSchemaException:
+                logging.error(f"Malformed Bilibili forward dynamic: {card}")
                 return dyn_id
 
-            if not (raw_dyn_orig := card.get("origin")):
-                return dyn_id
+            dyn = card["item"]
+
+            raw_dyn_orig = card["origin"]
 
             rt_dyn_raw = {
                 "desc": {
@@ -55,12 +197,23 @@ class Bilibili:
             dyn_text = f'{dyn["content"]}\nRT {rt_dyn[1][0]}'
             dyn_photos = rt_dyn[1][1]
         elif dyn_type == 4:
-            if not (dyn := card.get("item")):
+            try:
+                plain_schema(card)
+            except fastjsonschema.JsonSchemaException:
+                logging.error(f"Malformed Bilibili plaintext dynamic: {card}")
                 return dyn_id
+
+            dyn = card["item"]
 
             dyn_text = dyn["content"]
             dyn_photos = []
         elif dyn_type == 8:
+            try:
+                video_schema(card)
+            except fastjsonschema.JsonSchemaException:
+                logging.error(f"Malformed Bilibili video dynamic: {card}")
+                return dyn_id
+
             dyn_text = "\n".join([
                 card["title"],
                 f'https://www.bilibili.com/video/av{card["aid"]}'
@@ -81,15 +234,20 @@ class Bilibili:
         }
 
         try:
-            r = (await self.client.get(url, params=payload)).json()
+            resp = await self.client.get(url, params=payload)
         except HTTPError:
             logging.error("Bilibili api fetch error.")
             return since_id, []
 
         # noinspection PyTypeChecker
-        cards = r["data"]["cards"]
+        try:
+            r = resp.json()
+            cards = r["data"]["cards"]
+        except (json.JSONDecodeError, KeyError):
+            logging.error(f"Malformed Bilibili API response: {resp.text}")
+            return since_id, []
 
-        rtn_id = since_id
+        dyn_id = rtn_id = since_id
         dyn_list = []
 
         counter = 0
@@ -100,7 +258,7 @@ class Bilibili:
                 if dyn_id == since_id:
                     break
                 dyn_list.append(dyn_entry)
-            else:
+            elif rtn:
                 dyn_id = rtn
 
             if dyn_id == since_id:
@@ -111,7 +269,6 @@ class Bilibili:
                 rtn_id = dyn_id
             elif counter == 6:
                 break
-
 
         return rtn_id, dyn_list
 

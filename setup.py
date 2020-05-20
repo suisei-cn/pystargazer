@@ -26,7 +26,8 @@ setup(
             'uvicorn',
             'apscheduler',
             'feedparser',
-            'python-dateutil'
+            'python-dateutil',
+            'fastjsonschema'
         ],
         extras_require={
             'mongo': ['motor'],
