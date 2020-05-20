@@ -151,13 +151,13 @@ async def shutdown():
     await dump_state()
 
 
-@app.scheduled("interval", minutes=1)
+@app.scheduled("interval", minutes=1, misfire_grace_time=10)
 async def state_snapshot():
     await dump_state()
 
 
 # use one-shot schedule instead of on_startup to ensure callback can handle validation in time
-@app.scheduled(None, misfire_grace_time=5)
+@app.scheduled(None, misfire_grace_time=10)
 async def init_subscribe():
     await asyncio.sleep(5)
 
@@ -388,7 +388,7 @@ async def on_delete(obj: KVPair):
         await unsubscribe(yid)
 
 
-@app.scheduled("interval", minutes=1, id="ytb_tick")
+@app.scheduled("interval", minutes=1, id="ytb_tick", misfire_grace_time=10)
 async def tick():
     def batch_remove(iterable: Iterator[Tuple[str, Video]]):
         for ch_id, video in iterable:
@@ -435,7 +435,7 @@ async def tick():
     batch_remove(remove_map)
 
 
-@app.scheduled("interval", hours=8, id="ytb_renewal")
+@app.scheduled("interval", hours=8, id="ytb_renewal", misfire_grace_time=600)
 async def renewal():
     for channel_id in channel_list:
         await _subscribe(channel_id)

@@ -64,7 +64,7 @@ async def twitter_startup():
         await app.plugin_state.put(KVPair("twitter_since", {}))
 
 
-@app.scheduled("interval", minutes=1)
+@app.scheduled("interval", minutes=1, misfire_grace_time=10)
 async def twitter_task():
     if await get_option("disabled"):
         return
