@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import traceback
-from asyncio import AbstractEventLoop
 from typing import Awaitable, Callable, Dict, List, Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -18,7 +17,7 @@ T_Dispatcher = Callable[[Event], Awaitable[None]]
 class App:
     def __init__(self):
         # Initialize event loop
-        self.loop: AbstractEventLoop = asyncio.new_event_loop()
+        self.loop: asyncio.AbstractEventLoop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
         # hook containers
