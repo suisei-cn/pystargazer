@@ -12,7 +12,8 @@ import dateutil.parser
 import feedparser
 from apscheduler.schedulers.base import JobLookupError
 from dateutil import tz
-from httpx import AsyncClient, NetworkError, TimeoutException
+from httpx import AsyncClient, NetworkError
+from httpcore import TimeoutException  # work around httpx issue #949
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
