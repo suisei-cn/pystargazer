@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import fastjsonschema
 from httpx import AsyncClient, HTTPError
@@ -48,101 +48,100 @@ card_schema = fastjsonschema.compile({
     ]
 })
 
-pic_schema = fastjsonschema.compile({
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "type": "object",
-    "properties": {
-        "item": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "pictures": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "img_src": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "img_src"
-                        ]
-                    }
-                }
+dyn_schemas = {
+    1: fastjsonschema.compile({  # forward
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "properties": {
+            "item": {
+                "type": "object",
+                "properties": {}
             },
-            "required": [
-                "description",
-                "pictures"
-            ]
-        }
-    },
-    "required": [
-        "item"
-    ]
-})
-
-forward_schema = fastjsonschema.compile({
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "type": "object",
-    "properties": {
-        "item": {
-            "type": "object",
-            "properties": {}
+            "origin": {
+                "type": "string"
+            }
         },
-        "origin": {
-            "type": "string"
-        }
-    },
-    "required": [
-        "item",
-        "origin"
-    ]
-})
-
-plain_schema = fastjsonschema.compile({
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "type": "object",
-    "properties": {
-        "item": {
-            "type": "object",
-            "properties": {
-                "content": {
-                    "type": "string"
-                }
+        "required": [
+            "item",
+            "origin"
+        ]
+    }),
+    2: fastjsonschema.compile({  # pic
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "properties": {
+            "item": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "pictures": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "img_src": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "img_src"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "description",
+                    "pictures"
+                ]
+            }
+        },
+        "required": [
+            "item"
+        ]
+    }),
+    4: fastjsonschema.compile({     # plaintext
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "properties": {
+            "item": {
+                "type": "object",
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "content"
+                ]
+            }
+        },
+        "required": [
+            "item"
+        ]
+    }),
+    8: fastjsonschema.compile({     # video
+        "$schema": "http://json-schema.org/draft-04/schema#",
+        "type": "object",
+        "properties": {
+            "aid": {
+                "type": "number"
             },
-            "required": [
-                "content"
-            ]
-        }
-    },
-    "required": [
-        "item"
-    ]
-})
-
-video_schema = fastjsonschema.compile({
-  "$schema": "http://json-schema.org/draft-04/schema#",
-  "type": "object",
-  "properties": {
-    "aid": {
-      "type": "number"
-    },
-    "pic": {
-      "type": "string"
-    },
-    "title": {
-      "type": "string"
-    }
-  },
-  "required": [
-    "aid",
-    "pic",
-    "title"
-  ]
-})
+            "pic": {
+                "type": "string"
+            },
+            "title": {
+                "type": "string"
+            }
+        },
+        "required": [
+            "aid",
+            "pic",
+            "title"
+        ]
+    })
+}
 
 
 class Bilibili:
@@ -161,24 +160,15 @@ class Bilibili:
         dyn_type = raw_card["desc"]["type"]
         dyn_id = raw_card["desc"]["dynamic_id"]
 
-        if dyn_type == 2:
-            try:
-                pic_schema(card)
-            except fastjsonschema.JsonSchemaException:
-                logging.error(f"Malformed Bilibili picture dynamic: {card}")
-                return dyn_id
+        try:
+            dyn_schemas[dyn_type](card)
+        except fastjsonschema.JsonSchemaException:
+            logging.error(f"Malformed Bilibili dynamic: {card}")
+            return dyn_id
+        except KeyError:
+            return dyn_id
 
-            dyn = card["item"]
-
-            dyn_text = dyn["description"]
-            dyn_photos = [entry["img_src"] for entry in dyn["pictures"]]
-        elif dyn_type == 1:
-            try:
-                forward_schema(card)
-            except fastjsonschema.JsonSchemaException:
-                logging.error(f"Malformed Bilibili forward dynamic: {card}")
-                return dyn_id
-
+        if dyn_type == 1:   # forward
             dyn = card["item"]
 
             raw_dyn_orig = card["origin"]
@@ -191,29 +181,22 @@ class Bilibili:
                 "card": raw_dyn_orig
             }
             rt_dyn = Bilibili._parse(rt_dyn_raw)
-
             if not isinstance(rt_dyn, tuple):
                 return dyn_id
+
             dyn_text = f'{dyn["content"]}\nRT {rt_dyn[1][0]}'
             dyn_photos = rt_dyn[1][1]
-        elif dyn_type == 4:
-            try:
-                plain_schema(card)
-            except fastjsonschema.JsonSchemaException:
-                logging.error(f"Malformed Bilibili plaintext dynamic: {card}")
-                return dyn_id
+        elif dyn_type == 2:     # pic
+            dyn = card["item"]
 
+            dyn_text = dyn["description"]
+            dyn_photos = [entry["img_src"] for entry in dyn["pictures"]]
+        elif dyn_type == 4:     # plaintext
             dyn = card["item"]
 
             dyn_text = dyn["content"]
             dyn_photos = []
-        elif dyn_type == 8:
-            try:
-                video_schema(card)
-            except fastjsonschema.JsonSchemaException:
-                logging.error(f"Malformed Bilibili video dynamic: {card}")
-                return dyn_id
-
+        elif dyn_type == 8:     # video
             dyn_text = "\n".join([
                 card["title"],
                 f'https://www.bilibili.com/video/av{card["aid"]}'
