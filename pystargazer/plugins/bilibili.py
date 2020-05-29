@@ -226,7 +226,7 @@ class Bilibili:
         try:
             r = resp.json()
             cards = r["data"]["cards"]
-        except (json.JSONDecodeError, KeyError):
+        except (json.JSONDecodeError, KeyError, TypeError):
             logging.error(f"Malformed Bilibili API response: {resp.text}")
             return since_id, []
 
