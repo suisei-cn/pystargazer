@@ -1,10 +1,11 @@
 import asyncio
+import datetime
 import json
 import logging
-from typing import Optional, Union, List
+from typing import Optional, Union
 
 import fastjsonschema
-from httpx import AsyncClient, HTTPError
+from httpx import AsyncClient, HTTPError, Headers
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
@@ -101,7 +102,7 @@ dyn_schemas = {
             "item"
         ]
     }),
-    4: fastjsonschema.compile({     # plaintext
+    4: fastjsonschema.compile({  # plaintext
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
         "properties": {
@@ -121,7 +122,7 @@ dyn_schemas = {
             "item"
         ]
     }),
-    8: fastjsonschema.compile({     # video
+    8: fastjsonschema.compile({  # video
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
         "properties": {
@@ -147,6 +148,11 @@ dyn_schemas = {
 class Bilibili:
     def __init__(self):
         self.client = AsyncClient()
+        self.client.headers = Headers({
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 "
+                          "Safari/537.36"
+        })
+        self.disabled_until: Optional[datetime.datetime] = None
 
     @staticmethod
     def _parse(raw_card) -> Optional[Union[int, tuple]]:
@@ -168,7 +174,7 @@ class Bilibili:
         except KeyError:
             return dyn_id
 
-        if dyn_type == 1:   # forward
+        if dyn_type == 1:  # forward
             dyn = card["item"]
 
             raw_dyn_orig = card["origin"]
@@ -186,17 +192,17 @@ class Bilibili:
 
             dyn_text = f'{dyn["content"]}\nRT {rt_dyn[1][0]}'
             dyn_photos = rt_dyn[1][1]
-        elif dyn_type == 2:     # pic
+        elif dyn_type == 2:  # pic
             dyn = card["item"]
 
             dyn_text = dyn["description"]
             dyn_photos = [entry["img_src"] for entry in dyn["pictures"]]
-        elif dyn_type == 4:     # plaintext
+        elif dyn_type == 4:  # plaintext
             dyn = card["item"]
 
             dyn_text = dyn["content"]
             dyn_photos = []
-        elif dyn_type == 8:     # video
+        elif dyn_type == 8:  # video
             dyn_text = "\n".join([
                 card["title"],
                 f'https://www.bilibili.com/video/av{card["aid"]}'
@@ -208,6 +214,13 @@ class Bilibili:
         return dyn_id, (dyn_text, dyn_photos, dyn_type)
 
     async def fetch(self, user_id: int, since_id: int = 1):
+        if self.disabled_until:
+            if self.disabled_until < datetime.datetime.now():
+                logging.info("Bilibili crawler resumed.")
+                self.disabled_until = None
+            else:
+                return since_id, []
+
         url = "https://api.vc.bilibili.com/dynamic_svr/v1/dynamic_svr/space_history"
         payload = {
             "visitor_uid": 0,
@@ -226,7 +239,12 @@ class Bilibili:
         try:
             r = resp.json()
             cards = r["data"]["cards"]
-        except (json.JSONDecodeError, KeyError, TypeError):
+        except TypeError:
+            if r.get("code") == -412:
+                logging.error("Bilibili API Throttled. Crawler paused.")
+                self.disabled_until = datetime.datetime.now() + datetime.timedelta(minutes=30)
+                return since_id, []
+        except (json.JSONDecodeError, KeyError):
             logging.error(f"Malformed Bilibili API response: {resp.text}")
             return since_id, []
 
