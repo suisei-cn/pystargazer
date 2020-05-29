@@ -242,7 +242,7 @@ class Bilibili:
         except TypeError:
             if r.get("code") == -412:
                 logging.error("Bilibili API Throttled. Crawler paused.")
-                self.disabled_until = datetime.datetime.now() + datetime.timedelta(minutes=30)
+                self.disabled_until = datetime.datetime.now() + datetime.timedelta(minutes=10)
                 return since_id, []
         except (json.JSONDecodeError, KeyError):
             logging.error(f"Malformed Bilibili API response: {resp.text}")
@@ -296,7 +296,7 @@ async def bilibili_setup():
         await app.plugin_state.put(KVPair("bilibili_since", {}))
 
 
-@app.scheduled("interval", minutes=1, misfire_grace_time=10)
+@app.scheduled("interval", minutes=3, misfire_grace_time=10)
 async def bilibili_task():
     if await get_option("disabled"):
         return
