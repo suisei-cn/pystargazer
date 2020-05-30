@@ -297,11 +297,13 @@ class WebsubEndpoint(HTTPEndpoint):
             # check whether the video is already in the read_list
             try:
                 next(_video for _video in read_list if video.video_id == _video.video_id)
-                event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id, video=video)
-                await send_youtube_event(event)
-                read_list.append(video)
-            except StopIteration:
                 logging.info("Duplicate video. Ignoring.")
+                return Response()
+            except StopIteration:
+                pass
+            event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id, video=video)
+            await send_youtube_event(event)
+            read_list.append(video)
         elif video.type == ResourceType.BROADCAST and not video.actual_start_time:
             if not video.scheduled_start_time:
                 logging.warning("Malformed video object: missing scheduled start time.")
