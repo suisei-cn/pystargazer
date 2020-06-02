@@ -242,7 +242,7 @@ class Bilibili:
         except TypeError:
             if r.get("code") == -412:
                 logging.error("Bilibili API Throttled. Crawler paused.")
-                self.disabled_until = datetime.datetime.now() + datetime.timedelta(minutes=10)
+                self.disabled_until = datetime.datetime.now() + datetime.timedelta(minutes=30)
                 return since_id, []
         except (json.JSONDecodeError, KeyError):
             logging.error(f"Malformed Bilibili API response: {resp.text}")
