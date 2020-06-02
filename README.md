@@ -1,5 +1,6 @@
 # PyStargazer
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fsuisei-cn%2Fpystargazer.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fsuisei-cn%2Fpystargazer?ref=badge_shield)
+![Publish Docker](https://github.com/suisei-cn/pystargazer/workflows/Publish%20Docker/badge.svg)
 
 > WIP: This project is undergoing a major refactoring, and its API is expected to be changed
 > greatly in several days.
