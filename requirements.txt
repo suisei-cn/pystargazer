@@ -7,3 +7,4 @@ feedparser
 python-dateutil
 motor
 tinydb==3.15.2
+fastjsonschema

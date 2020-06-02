@@ -31,10 +31,10 @@ class ResourceType(Enum):
 
 
 class YoutubeEventType(Enum):
-    PUBLISH = "publish"
-    REMINDER = "reminder"
-    SCHEDULE = "schedule"
-    LIVE = "live"
+    PUBLISH = "ytb_video"
+    REMINDER = "ytb_reminder"
+    SCHEDULE = "ytb_sched"
+    LIVE = "ytb_live"
 
 
 @dataclass
@@ -194,44 +194,25 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
     vtuber = await get_vtuber(ytb_event.channel)
     video = ytb_event.video
 
-    event: Optional[Event] = None
-    if ytb_event.type == ResourceType.VIDEO and not await get_option("video_disabled"):
-        event = Event("youtube_video", vtuber.key, {
-            "title": video.title,
-            "description": video.description,
-            "images": [video.thumbnail],
-            "link": video.link
-        })
-    elif ytb_event.type == ResourceType.BROADCAST:
-        scheduled_start_time_print = video.scheduled_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")
-        if ytb_event.event == YoutubeEventType.LIVE and not await get_option("live_disabled"):
-            actual_start_time_print = video.actual_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")
-            event = Event("youtube_broadcast_live", vtuber.key, {
-                "title": video.title,
-                "description": video.description,
-                "link": video.link,
-                "images": [video.thumbnail],
-                "scheduled_start_time": scheduled_start_time_print,
-                "actual_start_time": actual_start_time_print
-            })
-        elif ytb_event.event == YoutubeEventType.REMINDER and not await get_option("reminder_disabled"):
-            event = Event("youtube_broadcast_reminder", vtuber.key, {
-                "title": video.title,
-                "description": video.description,
-                "link": video.link,
-                "images": [video.thumbnail],
-                "scheduled_start_time": scheduled_start_time_print,
-            })
-        elif ytb_event.event == YoutubeEventType.SCHEDULE and not await get_option("schedule_disabled"):
-            event = Event("youtube_broadcast_schedule", vtuber.key, {
-                "title": video.title,
-                "description": video.description,
-                "link": video.link,
-                "images": [video.thumbnail],
-                "scheduled_start_time": scheduled_start_time_print,
-            })
-    if event:
-        await app.send_event(event)
+    scheduled_start_time_print = video.scheduled_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")\
+        if video.scheduled_start_time else None
+    actual_start_time_print = video.actual_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")\
+        if video.actual_start_time else None
+
+    body = {
+        "title": video.title,
+        "description": video.description,
+        "link": video.link,
+        "images": [video.thumbnail] if ytb_event.event != YoutubeEventType.SCHEDULE else []
+    }
+    if scheduled_start_time_print:
+        body["scheduled_start_time"] = scheduled_start_time_print
+    if actual_start_time_print:
+        body["actual_start_time"] = actual_start_time_print
+
+    event = Event(ytb_event.event.value, vtuber.key, body)
+
+    await app.send_event(event)
 
 
 async def _subscribe(channel_id: str, reverse: bool = False):
@@ -316,11 +297,13 @@ class WebsubEndpoint(HTTPEndpoint):
             # check whether the video is already in the read_list
             try:
                 next(_video for _video in read_list if video.video_id == _video.video_id)
-                event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id, video=video)
-                await send_youtube_event(event)
-                read_list.append(video)
-            except StopIteration:
                 logging.info("Duplicate video. Ignoring.")
+                return Response()
+            except StopIteration:
+                pass
+            event = YoutubeEvent(type=video.type, event=YoutubeEventType.PUBLISH, channel=channel_id, video=video)
+            await send_youtube_event(event)
+            read_list.append(video)
         elif video.type == ResourceType.BROADCAST and not video.actual_start_time:
             if not video.scheduled_start_time:
                 logging.warning("Malformed video object: missing scheduled start time.")
@@ -358,11 +341,13 @@ class WebsubEndpoint(HTTPEndpoint):
             job_id = f"reminder_{channel_id}_{video.video_id}"
             if scheduler.get_job(job_id):
                 scheduler.remove_job(job_id=job_id)
-            scheduler.add_job(partial(send_youtube_event, event_reminder), trigger="cron", id=job_id,
-                              year=video.scheduled_start_time.year, month=video.scheduled_start_time.month,
-                              day=video.scheduled_start_time.day, hour=video.scheduled_start_time.hour,
-                              minute=video.scheduled_start_time.minute,
-                              second=video.scheduled_start_time.second)
+            reminder_time = video.scheduled_start_time - datetime.timedelta(minutes=30)
+            if reminder_time > datetime.datetime.now().replace(tzinfo=tz.tzlocal()):
+                scheduler.add_job(partial(send_youtube_event, event_reminder), trigger="cron", id=job_id,
+                                  year=reminder_time.year, month=reminder_time.month,
+                                  day=reminder_time.day, hour=reminder_time.hour,
+                                  minute=reminder_time.minute,
+                                  second=reminder_time.second)
 
             # for scheduled
             await send_youtube_event(event_schedule)
@@ -476,11 +461,13 @@ async def load_state():
 
                 # set a reminder
                 job_id = f"reminder_{channel}_{video.video_id}"
-                scheduler.add_job(partial(send_youtube_event, event_reminder), trigger="cron", id=job_id,
-                                  year=video.scheduled_start_time.year, month=video.scheduled_start_time.month,
-                                  day=video.scheduled_start_time.day, hour=video.scheduled_start_time.hour,
-                                  minute=video.scheduled_start_time.minute,
-                                  second=video.scheduled_start_time.second)
+                reminder_time = video.scheduled_start_time - datetime.timedelta(minutes=30)
+                if reminder_time > datetime.datetime.now().replace(tzinfo=tz.tzlocal()):
+                    scheduler.add_job(partial(send_youtube_event, event_reminder), trigger="cron", id=job_id,
+                                      year=reminder_time.year, month=reminder_time.month,
+                                      day=reminder_time.day, hour=reminder_time.hour,
+                                      minute=reminder_time.minute,
+                                      second=reminder_time.second)
                 channel_list[channel].append(video)
 
     read_list = [Video.load(video) for video in read_state.value["videos"]]

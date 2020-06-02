@@ -1,12 +1,85 @@
 import asyncio
+import logging
+from json import JSONDecodeError
 
-from httpx import AsyncClient, Headers
+import fastjsonschema
+from httpx import AsyncClient, HTTPError, Headers
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
 from pystargazer.app import app
 from pystargazer.models import Event, KVPair
 from pystargazer.utils import get_option as _get_option
+
+raw_schema = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "number"
+            },
+            "id_str": {
+                "type": "string"
+            },
+            "text": {
+                "type": "string"
+            },
+            "entities": {
+                "type": "object",
+                "properties": {
+                    "media": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "id": {
+                                    "type": "number"
+                                },
+                                "id_str": {
+                                    "type": "string"
+                                },
+                                "media_url": {
+                                    "type": "string"
+                                },
+                                "media_url_https": {
+                                    "type": "string"
+                                },
+                                "url": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "id",
+                                "id_str",
+                                "media_url",
+                                "media_url_https",
+                                "url",
+                                "type"
+                            ]
+                        }
+                    }
+                }
+            },
+            "retweeted_status": {
+                "type": "object",
+                "properties": {}
+            }
+        },
+        "required": [
+            "id",
+            "id_str",
+            "text",
+            "entities"
+        ]
+    }
+}
+
+schema = fastjsonschema.compile(raw_schema)
 
 
 class Twitter:
@@ -27,22 +100,34 @@ class Twitter:
             "include_rts": True
         }
 
-        r = (await self.client.get(url, params=payload)).json()
+        try:
+            resp = await self.client.get(url, params=payload)
+        except HTTPError:
+            logging.error("Twitter api fetch error.")
+            return since_id, None
+
+        try:
+            r = resp.json()
+            schema(r)
+        except (JSONDecodeError, fastjsonschema.JsonSchemaException):
+            logging.error(f"Malformed Twitter API response: {resp.text}")
+            return since_id, None
+
         if not r:
             return since_id, None
 
         tweet_list = []
         for _, tweet in zip(range(5), r):
+            is_rt = "retweeted_status" in tweet.keys()
             tweet_text = tweet["text"]
             tweet_media = tweet["entities"].get("media", [])
             tweet_photos = [medium["media_url"] for medium in tweet_media if medium["type"] == "photo"]
-            tweet_list.append((tweet_text, tweet_photos))
+            tweet_list.append((tweet_text, tweet_photos, is_rt))
 
         return r[0]["id"], tweet_list
 
 
 twitter = Twitter(app.credentials.get("twitter"))
-
 
 get_option = _get_option(app, "twitter")
 
@@ -88,7 +173,7 @@ async def twitter_task():
 
     events = (
         Event(
-            "tweet",
+            "t_rt" if tweet[2] else "t_tweet",
             name,
             {"text": tweet[0], "images": tweet[1]}
         )
