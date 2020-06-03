@@ -5,13 +5,10 @@ from starlette.responses import PlainTextResponse
 
 from pystargazer.app import app
 from pystargazer.models import Event, KVPair
-from pystargazer.utils import get_option as _get_option
 from .apis import Twitter
 from .schemas import schema
 
 twitter = Twitter(app.credentials.get("twitter"))
-
-get_option = _get_option(app, "twitter")
 
 
 @app.route("/help/twitter", methods=["GET"])
@@ -33,9 +30,6 @@ async def twitter_startup():
 
 @app.scheduled("interval", minutes=1, misfire_grace_time=10)
 async def twitter_task():
-    if await get_option("disabled"):
-        return
-
     t_since: KVPair = await app.plugin_state.get("twitter_since")
 
     t_valid_ids = []

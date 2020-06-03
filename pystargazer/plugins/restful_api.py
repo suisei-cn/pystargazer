@@ -23,7 +23,7 @@ def get_table(name: str) -> KVContainer:
 class LoadedPluginsEP(HTTPEndpoint):
     @requires(["admin"])
     async def get(self, request: Request):
-        return JSONResponse(app.plugins.keys())
+        return JSONResponse(list(app.plugins.keys()))
 
 @app.route("/api/{table}")
 class RootEP(HTTPEndpoint):

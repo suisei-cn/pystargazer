@@ -20,7 +20,6 @@ from starlette.status import HTTP_404_NOT_FOUND
 from pystargazer.app import app
 from pystargazer.models import Event
 from pystargazer.models import KVPair
-from pystargazer.utils import get_option as _get_option
 from .models import ResourceType, Video, YoutubeEvent, YoutubeEventType
 
 callback_url: str = app.credentials.get("base_url")
@@ -28,8 +27,6 @@ channel_list: Dict[str, List[Video]] = {}
 read_list: List[Video] = []
 scheduler = app.scheduler
 http = AsyncClient()
-
-get_option = _get_option(app, "youtube")
 
 
 @app.on_startup

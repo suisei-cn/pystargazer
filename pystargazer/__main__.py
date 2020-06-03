@@ -9,6 +9,8 @@ from .app import app
 from .models import KVContainer
 from .utils import strtobool
 
+logging.basicConfig(level=logging.INFO)
+
 debug = strtobool(environ.get("DEBUG"))
 access_log = strtobool(environ.get("ACCESS_LOG"), True)
 host = environ.get("HOST", "0.0.0.0")
@@ -26,6 +28,7 @@ search_path = [path for path in
                if path]
 app._plugins = {module_name: loader.find_module(module_name).load_module(module_name)
                 for loader, module_name, is_pkg in pkgutil.walk_packages(["./my_pkg/plugins"])}
+logging.info(f"Loaded plugins: {list(app.plugins.keys())}")
 
 if not debug:
     logging.getLogger("apscheduler").setLevel(logging.WARNING)
