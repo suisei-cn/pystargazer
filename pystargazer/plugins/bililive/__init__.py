@@ -7,6 +7,7 @@ from pystargazer.app import app
 from pystargazer.models import Event
 from pystargazer.models import KVPair
 from .apis import LiveClient, LiveRoom, LiveStatus, get_room_id
+import logging
 
 http = AsyncClient()
 map_uid_client: Dict[int, LiveClient] = {}
@@ -34,6 +35,7 @@ async def init_ws():
     await asyncio.gather(*(client.init_room() for client in map_uid_client.values()))
     for client in map_uid_client.values():
         client.start()
+        logging.info(f"Bili live client {client} started.")
 
 
 @app.on_shutdown
@@ -54,6 +56,8 @@ async def on_update(obj: KVPair, added: dict, removed: dict, updated: dict):
         if uid in map_uid_client.keys():
             return
         roomid = await get_room_id(uid)
+        if not roomid:
+            return
         map_uid_client[uid] = (client := LiveClient(roomid, on_live=on_live))
         await client.init_room()
         client.start()
@@ -70,9 +74,10 @@ async def on_update(obj: KVPair, added: dict, removed: dict, updated: dict):
             map_uid_client.pop(old_uid)
         if new_uid not in map_uid_client.keys():
             roomid = await get_room_id(new_uid)
-            map_uid_client[new_uid] = (client := LiveClient(roomid, on_live=on_live))
-            await client.init_room()
-            client.start()
+            if roomid:
+                map_uid_client[new_uid] = (client := LiveClient(roomid, on_live=on_live))
+                await client.init_room()
+                client.start()
 
 
 @app.on_create("vtubers")

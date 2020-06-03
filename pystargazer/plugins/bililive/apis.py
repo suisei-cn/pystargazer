@@ -80,7 +80,7 @@ async def get_room_id(uid: int) -> Optional[int]:
         logging.error(f"Malformed Bilibili Live API response: {r.text}")
         return None
 
-    if url := json_data.get("url"):
+    if (url := json_data.get("url")) and url:
         return int(url.split("/")[-1])
     else:
         return None
@@ -95,9 +95,13 @@ class LiveClient(BLiveClient):
         self.on_prepare = on_prepare
         self._live = False
 
+    def __repr__(self):
+        return f"<LiveClient {self.room_id}>"
+
     async def init_room(self):
         for i in range(5):
             if await super().init_room():
+                logging.info(f"Bili live {self.room_id} init success.")
                 return
             logging.info(f"Failed to init room {self.room_id}. Retry {i + 1}/5")
             await asyncio.sleep(1)
