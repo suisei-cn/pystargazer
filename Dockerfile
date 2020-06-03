@@ -14,6 +14,10 @@ COPY pystargazer ./pystargazer
 
 RUN pip install ".[files,mongo]"
 
+RUN mkdir /plugins
+
 ENV PYTHONUNBUFFERED=1
+
+ENV PLUGIN_DIR=/plugins
 
 CMD ["python", "-m", "pystargazer"]
