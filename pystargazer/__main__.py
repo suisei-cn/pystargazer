@@ -1,6 +1,6 @@
-import importlib
+import pkgutil
 import logging
-from os import environ, listdir, path
+from os import environ, path
 
 from uvicorn.main import Config, Server
 
@@ -12,15 +12,27 @@ debug = strtobool(environ.get("DEBUG"))
 access_log = strtobool(environ.get("ACCESS_LOG"), True)
 host = environ.get("HOST", "0.0.0.0")
 port = int(environ.get("PORT", "80"))
+builtin_plugins = strtobool(environ.get("ENABLE_BUILTIN_PLUGINS"), True)
+plugin_blacklist = [plugin.strip() for plugin in environ.get("PLUGIN_BLACKLIST", "").split(",")]
+plugin_dir = environ.get("PLUGIN_DIR", None)
+
+if not debug:
+    logging.basicConfig(level=logging.INFO)
+else:
+    logging.basicConfig(level=logging.DEBUG)
 
 app._vtubers = KVContainer(app.credentials.get("vtubers_storage"), "vtubers")
 app._configs = KVContainer(app.credentials.get("configs_storage"), "configs")
 app._states = KVContainer(app.credentials.get("plugins_storage"), "states")
 
-plugin_dir = path.join(path.dirname(path.abspath(__file__)), "plugins")
-plugins_path = [file[:-3] for file in listdir(plugin_dir) if file.endswith(".py")]
-plugins = {plugin.__name__: plugin for plugin in
-           [importlib.import_module(f"pystargazer.plugins.{plugin_path}") for plugin_path in plugins_path]}
+search_path = [path for path in
+               [path.join(path.dirname(path.abspath(__file__)), "plugins") if builtin_plugins else None,
+                plugin_dir]
+               if path]
+app._plugins = {module_name: loader.find_module(module_name).load_module(module_name)
+                for loader, module_name, is_pkg in pkgutil.iter_modules(search_path)
+                if module_name not in plugin_blacklist}
+logging.info(f"Loaded plugins: {list(app.plugins.keys())}")
 
 if not debug:
     logging.getLogger("apscheduler").setLevel(logging.WARNING)
