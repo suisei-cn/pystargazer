@@ -12,7 +12,7 @@ COPY README.md setup.py ./
 
 COPY pystargazer ./pystargazer
 
-RUN pip install ".[files,mongo]"
+RUN pip install ".[files,mongo,telemetry]"
 
 RUN mkdir /plugins
 

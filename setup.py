@@ -31,7 +31,8 @@ setup(
         ],
         extras_require={
             'mongo': ['motor'],
-            'files': ['tinydb==3.15.2']
+            'files': ['tinydb==3.15.2'],
+            'telemetry': ['sentry-sdk']
         },
         python_requires='>=3.8'
 )
