@@ -9,14 +9,17 @@ from .app import app
 from .models import KVContainer
 from .utils import strtobool
 
-logging.basicConfig(level=logging.INFO)
-
 debug = strtobool(environ.get("DEBUG"))
 access_log = strtobool(environ.get("ACCESS_LOG"), True)
 host = environ.get("HOST", "0.0.0.0")
 port = int(environ.get("PORT", "80"))
 builtin_plugins = strtobool(environ.get("ENABLE_BUILTIN_PLUGINS"), True)
 plugin_dir = environ.get("PLUGIN_DIR", None)
+
+if not debug:
+    logging.basicConfig(level=logging.INFO)
+else:
+    logging.basicConfig(level=logging.DEBUG)
 
 app._vtubers = KVContainer(app.credentials.get("vtubers_storage"), "vtubers")
 app._configs = KVContainer(app.credentials.get("configs_storage"), "configs")
@@ -27,7 +30,7 @@ search_path = [path for path in
                 plugin_dir]
                if path]
 app._plugins = {module_name: loader.find_module(module_name).load_module(module_name)
-                for loader, module_name, is_pkg in pkgutil.walk_packages(search_path)}
+                for loader, module_name, is_pkg in pkgutil.iter_modules(search_path)}
 logging.info(f"Loaded plugins: {list(app.plugins.keys())}")
 
 if not debug:
