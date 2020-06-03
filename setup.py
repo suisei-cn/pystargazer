@@ -21,6 +21,7 @@ setup(
         ],
         install_requires=[
             'uvloop',
+            'aiohttp',
             'httpx',
             'starlette',
             'uvicorn',
