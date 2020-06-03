@@ -24,8 +24,8 @@ search_path = [path for path in
                [path.join(path.dirname(path.abspath(__file__)), "plugins") if builtin_plugins else None,
                 plugin_dir]
                if path]
-plugins = {module_name: loader.find_module(module_name).load_module(module_name)
-           for loader, module_name, is_pkg in pkgutil.walk_packages(["./my_pkg/plugins"])}
+app._plugins = {module_name: loader.find_module(module_name).load_module(module_name)
+                for loader, module_name, is_pkg in pkgutil.walk_packages(["./my_pkg/plugins"])}
 
 if not debug:
     logging.getLogger("apscheduler").setLevel(logging.WARNING)

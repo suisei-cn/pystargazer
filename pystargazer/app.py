@@ -2,6 +2,7 @@ import asyncio
 import logging
 import traceback
 from typing import Awaitable, Callable, Dict, List, Optional
+from types import ModuleType
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from starlette.applications import Starlette
@@ -44,6 +45,9 @@ class App:
         # starlette object
         self._starlette: Optional[Starlette] = None
 
+        # plugins
+        self._plugins: Dict[str, ModuleType] = {}
+
     def init_starlette(self, debug: bool = False):
         self._starlette = Starlette(debug=debug, routes=self._routes, middleware=self._middleware,
                                     on_startup=self._startup, on_shutdown=self._shutdown)
@@ -53,6 +57,10 @@ class App:
         if not self._starlette:
             raise RuntimeError("Starlette object hasn't been initialized.")
         return self._starlette
+
+    @property
+    def plugins(self) -> Dict[str, ModuleType]:
+        return self._plugins
 
     @property
     def vtubers(self) -> KVContainer:

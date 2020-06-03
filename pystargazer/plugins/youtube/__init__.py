@@ -1,19 +1,17 @@
 import asyncio
 import datetime
 import logging
-from dataclasses import dataclass, asdict
-from enum import Enum
 from functools import partial
-from itertools import cycle, tee
-from typing import Dict, Iterator, List, Optional, Tuple
+from itertools import tee
+from typing import Dict, Iterator, List, Tuple
 from urllib.parse import parse_qs, urljoin, urlparse
 
-import dateutil.parser
 import feedparser
 from apscheduler.schedulers.base import JobLookupError
 from dateutil import tz
-from httpx import AsyncClient, NetworkError
+# noinspection PyPackageRequirements
 from httpcore import TimeoutException  # work around httpx issue #949
+from httpx import AsyncClient, NetworkError
 from starlette.endpoints import HTTPEndpoint
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
@@ -23,111 +21,8 @@ from pystargazer.app import app
 from pystargazer.models import Event
 from pystargazer.models import KVPair
 from pystargazer.utils import get_option as _get_option
+from .models import ResourceType, Video, YoutubeEvent, YoutubeEventType
 
-
-class ResourceType(Enum):
-    VIDEO = "video"
-    BROADCAST = "broadcast"
-
-
-class YoutubeEventType(Enum):
-    PUBLISH = "ytb_video"
-    REMINDER = "ytb_reminder"
-    SCHEDULE = "ytb_sched"
-    LIVE = "ytb_live"
-
-
-@dataclass
-class Video:
-    video_id: str
-    title: str = ""
-    link: str = ""
-    type: Optional[ResourceType] = None
-    description: str = ""
-    thumbnail: str = ""
-    scheduled_start_time: Optional[datetime.datetime] = None
-    actual_start_time: Optional[datetime.datetime] = None
-
-    def __post_init__(self):
-        self.link = f"https://www.youtube.com/watch?v={self.video_id}"
-
-    def dump(self):
-        state_dict = asdict(self)
-        state_dict["type"] = self.type.name
-        state_dict["scheduled_start_time"] = datetime.datetime.timestamp(dt) \
-            if (dt := self.scheduled_start_time) else None
-        state_dict["actual_start_time"] = datetime.datetime.timestamp(dt) if (dt := self.actual_start_time) else None
-        return state_dict
-
-    @classmethod
-    def load(cls, state_dict):
-        _state_dict = state_dict.copy()
-        _state_dict["type"] = ResourceType[state_dict["type"]]
-        _state_dict["scheduled_start_time"] = datetime.datetime.fromtimestamp(ts).astimezone(tz.tzlocal()) \
-            if (ts := state_dict["scheduled_start_time"]) else None
-        _state_dict["actual_start_time"] = datetime.datetime.fromtimestamp(ts).astimezone(tz.tzlocal()) \
-            if (ts := state_dict["actual_start_time"]) else None
-        return cls(**_state_dict)
-
-    def merge(self, obj):
-        if not isinstance(obj, Video) or self.video_id != obj.video_id:
-            raise ValueError("Object can't be merged.")
-        self.__dict__.update(obj.__dict__)
-
-    async def fetch(self) -> bool:
-        while True:
-            try:
-                r = await http.get("https://www.googleapis.com/youtube/v3/videos", params={
-                    "part": "liveStreamingDetails,snippet",
-                    "fields": "items(liveStreamingDetails,snippet)",
-                    "key": next(token_g),
-                    "id": self.video_id
-                })
-                break
-            except (NetworkError, TimeoutException):
-                pass
-
-        if not (data := r.json()):
-            return False
-
-        try:
-            item = data['items'][0]
-        except IndexError:
-            logging.error(f"Youtube data api malformed response: {data}")
-            return False
-
-        if snippet := item.get("snippet"):
-            self.title = f'{snippet.get("title")}'
-            self.description = f'{snippet.get("description")} ...'
-            self.thumbnail = thumbnails.get("standard", {"url": None}).get("url") \
-                if (thumbnails := snippet.get("thumbnails")) else None
-
-        if streaming := item.get("liveStreamingDetails"):
-            self.type = ResourceType.BROADCAST
-            if scheduled_start_time := streaming.get("scheduledStartTime"):
-                self.scheduled_start_time = dateutil.parser.parse(scheduled_start_time).astimezone(tz.tzlocal())
-            if actual_start_time := streaming.get("actualStartTime"):
-                self.actual_start_time = dateutil.parser.parse(actual_start_time).astimezone(tz.tzlocal())
-        else:
-            self.type = ResourceType.VIDEO
-
-        return True
-
-
-@dataclass
-class YoutubeEvent:
-    __slots__ = ["type", "event", "channel", "video"]
-    type: ResourceType
-    event: YoutubeEventType
-    channel: str
-    video: Video
-
-    def __post_init__(self):
-        if self.type == ResourceType.BROADCAST and not self.video.scheduled_start_time:
-            raise ValueError("Missing field(s): scheduled_start_time in video.")
-
-
-token_g: Iterator[str] = cycle(app.credentials.get("youtube"))
 callback_url: str = app.credentials.get("base_url")
 channel_list: Dict[str, List[Video]] = {}
 read_list: List[Video] = []
@@ -194,9 +89,9 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
     vtuber = await get_vtuber(ytb_event.channel)
     video = ytb_event.video
 
-    scheduled_start_time_print = video.scheduled_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")\
+    scheduled_start_time_print = video.scheduled_start_time.strftime("%Y-%m-%d %I:%M%p (CST)") \
         if video.scheduled_start_time else None
-    actual_start_time_print = video.actual_start_time.strftime("%Y-%m-%d %I:%M%p (CST)")\
+    actual_start_time_print = video.actual_start_time.strftime("%Y-%m-%d %I:%M%p (CST)") \
         if video.actual_start_time else None
 
     body = {
@@ -400,7 +295,7 @@ async def tick():
                                            for channel, videos in channel_list.items()
                                            for video in videos]
     video_map, malformed_map = split(video_list, lambda x: x[1].scheduled_start_time)
-    pending_map = list(filter(lambda x: (now-x[1].scheduled_start_time).total_seconds() > -600, video_map))
+    pending_map = list(filter(lambda x: (now - x[1].scheduled_start_time).total_seconds() > -600, video_map))
     # noinspection PyTypeChecker
     fetch_map: Iterator[Tuple[Tuple[str, Video], bool]] = zip(
         pending_map,

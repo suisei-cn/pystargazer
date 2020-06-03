@@ -19,6 +19,12 @@ def get_table(name: str) -> KVContainer:
         raise KeyError("Table doesn't exist.")
 
 
+@app.route("/api/loaded_plugins")
+class LoadedPluginsEP(HTTPEndpoint):
+    @requires(["admin"])
+    async def get(self, request: Request):
+        return JSONResponse(app.plugins.keys())
+
 @app.route("/api/{table}")
 class RootEP(HTTPEndpoint):
     async def get(self, request: Request):
