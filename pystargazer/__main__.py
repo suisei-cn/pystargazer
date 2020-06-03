@@ -1,7 +1,7 @@
 import importlib
 import pkgutil
 import logging
-from os import environ, listdir, path
+from os import environ, path
 
 from uvicorn.main import Config, Server
 
@@ -27,7 +27,7 @@ search_path = [path for path in
                 plugin_dir]
                if path]
 app._plugins = {module_name: loader.find_module(module_name).load_module(module_name)
-                for loader, module_name, is_pkg in pkgutil.walk_packages(["./my_pkg/plugins"])}
+                for loader, module_name, is_pkg in pkgutil.walk_packages(search_path)}
 logging.info(f"Loaded plugins: {list(app.plugins.keys())}")
 
 if not debug:
