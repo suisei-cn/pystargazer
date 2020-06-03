@@ -1,4 +1,3 @@
-import importlib
 import pkgutil
 import logging
 from os import environ, path
@@ -14,6 +13,7 @@ access_log = strtobool(environ.get("ACCESS_LOG"), True)
 host = environ.get("HOST", "0.0.0.0")
 port = int(environ.get("PORT", "80"))
 builtin_plugins = strtobool(environ.get("ENABLE_BUILTIN_PLUGINS"), True)
+plugin_blacklist = [plugin.strip() for plugin in environ.get("PLUGIN_BLACKLIST", "").split(",")]
 plugin_dir = environ.get("PLUGIN_DIR", None)
 
 if not debug:
@@ -30,7 +30,8 @@ search_path = [path for path in
                 plugin_dir]
                if path]
 app._plugins = {module_name: loader.find_module(module_name).load_module(module_name)
-                for loader, module_name, is_pkg in pkgutil.iter_modules(search_path)}
+                for loader, module_name, is_pkg in pkgutil.iter_modules(search_path)
+                if module_name not in plugin_blacklist}
 logging.info(f"Loaded plugins: {list(app.plugins.keys())}")
 
 if not debug:
