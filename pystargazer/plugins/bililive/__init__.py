@@ -35,7 +35,6 @@ async def init_ws():
     await asyncio.gather(*(client.init_room() for client in map_uid_client.values()))
     for client in map_uid_client.values():
         client.start()
-        logging.info(f"Bili live client {client} started.")
 
 
 @app.on_shutdown
@@ -92,7 +91,7 @@ async def on_live(client: LiveClient, command: dict):
     live_room = await LiveRoom.from_room_id(client.room_id)
     body = {
         "title": live_room.title,
-        "link": f"https://live.bilibili.com/{uid}",
+        "link": f"https://live.bilibili.com/{client.room_id}",
         "images": [live_room.cover]
     }
     event = Event("bili_live", vtuber.key, body)

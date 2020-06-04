@@ -2,7 +2,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from inspect import isawaitable
+from inspect import iscoroutinefunction
 from json import JSONDecodeError
 from typing import Optional
 
@@ -57,7 +57,7 @@ class LiveRoom:
             return None
 
         data = json_data['data']
-        return cls(room_id, data["title"], data["uid"], data["cover"], LiveStatus(data["live_status"]))
+        return cls(room_id, data["title"], data["uid"], data["user_cover"], LiveStatus(data["live_status"]))
 
 
 async def get_room_id(uid: int) -> Optional[int]:
@@ -101,9 +101,9 @@ class LiveClient(BLiveClient):
     async def init_room(self):
         for i in range(5):
             if await super().init_room():
-                logging.info(f"Bili live {self.room_id} init success.")
+                logging.debug(f"Bili live {self.room_id} init success.")
                 return
-            logging.info(f"Failed to init room {self.room_id}. Retry {i + 1}/5")
+            logging.warning(f"Failed to init room {self.room_id}. Retry {i + 1}/5")
             await asyncio.sleep(1)
         logging.error(f"Failed to init room {self.room_id}. Giving up.")
 
@@ -112,7 +112,7 @@ class LiveClient(BLiveClient):
         if self._live:
             return
         self._live = True
-        if isawaitable(self.on_live):
+        if iscoroutinefunction(self.on_live):
             await self.on_live(self, command)
         elif callable(self.on_live):
             self.on_live(self, command)
@@ -122,7 +122,7 @@ class LiveClient(BLiveClient):
         if not self._live:
             return
         self._live = False
-        if isawaitable(self.on_live):
+        if iscoroutinefunction(self.on_live):
             await self.on_prepare(self, command)
         elif callable(self.on_prepare):
             self.on_prepare(self, command)
