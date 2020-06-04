@@ -1,4 +1,5 @@
 uvloop
+aiohttp
 httpx
 starlette
 uvicorn
