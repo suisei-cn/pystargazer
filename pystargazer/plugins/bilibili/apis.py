@@ -49,7 +49,7 @@ def parse_card(raw_card) -> Optional[Union[int, Tuple[int, Dynamic]]]:
         rt_dyn: Dynamic = rt_dyn_raw[1]
 
         dyn_text = f'{dyn["content"]}\nRT {rt_dyn.text}'
-        dyn_link = rt_dyn.link
+        dyn_link = f"https://t.bilibili.com/{dyn_id}"
         dyn_photos = rt_dyn.photos
     elif dyn_type == DynamicType.PHOTO:
         dyn = card["item"]
