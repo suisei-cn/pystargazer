@@ -1,17 +1,18 @@
 import datetime
 import json
 import logging
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import fastjsonschema
-from httpx import AsyncClient, HTTPError, Headers
 # noinspection PyPackageRequirements
 from httpcore import TimeoutException
+from httpx import AsyncClient, HTTPError, Headers
 
+from .models import Dynamic, DynamicType
 from .schemas import card_schema, dyn_schemas
 
 
-def parse_card(raw_card) -> Optional[Union[int, tuple]]:
+def parse_card(raw_card) -> Optional[Union[int, Tuple[int, Dynamic]]]:
     try:
         card_schema(raw_card)
         card = json.loads(raw_card["card"])
@@ -19,7 +20,7 @@ def parse_card(raw_card) -> Optional[Union[int, tuple]]:
         logging.error(f"Malformed Bilibili dynamic card: {raw_card}")
         return None
 
-    dyn_type = raw_card["desc"]["type"]
+    dyn_type = DynamicType.from_int(raw_card["desc"]["type"])
     dyn_id = raw_card["desc"]["dynamic_id"]
 
     try:
@@ -30,44 +31,46 @@ def parse_card(raw_card) -> Optional[Union[int, tuple]]:
     except KeyError:
         return dyn_id
 
-    if dyn_type == 1:  # forward
+    if dyn_type == DynamicType.FORWARD:
         dyn = card["item"]
 
         raw_dyn_orig = card["origin"]
 
-        rt_dyn_raw = {
+        rt_dyn_query = {
             "desc": {
                 "type": dyn["orig_type"],
                 "dynamic_id": dyn["orig_dy_id"]
             },
             "card": raw_dyn_orig
         }
-        rt_dyn = parse_card(rt_dyn_raw)
-        if not isinstance(rt_dyn, tuple):
+        rt_dyn_raw = parse_card(rt_dyn_query)
+        if not isinstance(rt_dyn_raw, tuple):
             return dyn_id
+        rt_dyn: Dynamic = rt_dyn_raw[1]
 
-        dyn_text = f'{dyn["content"]}\nRT {rt_dyn[1][0]}'
-        dyn_photos = rt_dyn[1][1]
-    elif dyn_type == 2:  # pic
+        dyn_text = f'{dyn["content"]}\nRT {rt_dyn.text}'
+        dyn_link = rt_dyn.link
+        dyn_photos = rt_dyn.photos
+    elif dyn_type == DynamicType.PHOTO:
         dyn = card["item"]
 
         dyn_text = dyn["description"]
+        dyn_link = f"https://t.bilibili.com/{dyn_id}"
         dyn_photos = [entry["img_src"] for entry in dyn["pictures"]]
     elif dyn_type == 4:  # plaintext
         dyn = card["item"]
 
         dyn_text = dyn["content"]
+        dyn_link = f"https://t.bilibili.com/{dyn_id}"
         dyn_photos = []
     elif dyn_type == 8:  # video
-        dyn_text = "\n".join([
-            card["title"],
-            f'https://www.bilibili.com/video/av{card["aid"]}'
-        ])
+        dyn_text = card["title"]
+        dyn_link = f'https://www.bilibili.com/video/av{card["aid"]}'
         dyn_photos = [card["pic"]]
     else:
         return dyn_id
 
-    return dyn_id, (dyn_text, dyn_photos, dyn_type)
+    return dyn_id, Dynamic(dyn_type, dyn_text, dyn_photos, dyn_link)
 
 
 class Bilibili:
@@ -79,7 +82,7 @@ class Bilibili:
         })
         self.disabled_until: Optional[datetime.datetime] = None
 
-    async def fetch(self, user_id: int, since_id: int = 1) -> Tuple[int, list]:
+    async def fetch(self, user_id: int, since_id: int = 1) -> Tuple[int, List[Dynamic]]:
         if self.disabled_until:
             if self.disabled_until < datetime.datetime.now():
                 logging.info("Bilibili crawler resumed.")

@@ -1,5 +1,7 @@
 import fastjsonschema
 
+from .models import DynamicType
+
 card_schema = fastjsonschema.compile({
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
@@ -30,7 +32,7 @@ card_schema = fastjsonschema.compile({
 })
 
 dyn_schemas = {
-    1: fastjsonschema.compile({  # forward
+    DynamicType.FORWARD: fastjsonschema.compile({
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
         "properties": {
@@ -47,7 +49,7 @@ dyn_schemas = {
             "origin"
         ]
     }),
-    2: fastjsonschema.compile({  # pic
+    DynamicType.PHOTO: fastjsonschema.compile({
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
         "properties": {
@@ -82,7 +84,7 @@ dyn_schemas = {
             "item"
         ]
     }),
-    4: fastjsonschema.compile({  # plaintext
+    DynamicType.PLAIN: fastjsonschema.compile({
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
         "properties": {
@@ -102,7 +104,7 @@ dyn_schemas = {
             "item"
         ]
     }),
-    8: fastjsonschema.compile({  # video
+    DynamicType.VIDEO: fastjsonschema.compile({
         "$schema": "http://json-schema.org/draft-04/schema#",
         "type": "object",
         "properties": {
