@@ -3,6 +3,8 @@ from json import JSONDecodeError
 
 import fastjsonschema
 from httpx import AsyncClient, HTTPError, Headers
+# noinspection PyPackageRequirements
+from httpcore import TimeoutException
 
 from .schemas import schema
 
@@ -27,8 +29,8 @@ class Twitter:
 
         try:
             resp = await self.client.get(url, params=payload)
-        except HTTPError:
-            logging.error("Twitter api fetch error.")
+        except (HTTPError, TimeoutException):
+            logging.exception("Twitter api fetch error.")
             return since_id, None
 
         try:

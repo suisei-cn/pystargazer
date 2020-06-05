@@ -5,6 +5,8 @@ from typing import Optional, Tuple, Union
 
 import fastjsonschema
 from httpx import AsyncClient, HTTPError, Headers
+# noinspection PyPackageRequirements
+from httpcore import TimeoutException
 
 from .schemas import card_schema, dyn_schemas
 
@@ -95,8 +97,8 @@ class Bilibili:
 
         try:
             resp = await self.client.get(url, params=payload)
-        except HTTPError:
-            logging.error("Bilibili api fetch error.")
+        except (HTTPError, TimeoutException):
+            logging.exception("Bilibili api fetch error.")
             return since_id, []
 
         try:
