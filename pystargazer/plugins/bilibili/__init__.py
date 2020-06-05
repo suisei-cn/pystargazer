@@ -7,14 +7,8 @@ from pystargazer.app import app
 from pystargazer.models import Event, KVPair
 from pystargazer.utils import get_option as _get_option
 from .apis import Bilibili
+from .models import Dynamic
 from .schemas import card_schema, dyn_schemas
-
-event_map = {
-    1: "bili_rt_dyn",
-    2: "bili_img_dyn",
-    4: "bili_plain_dyn",
-    8: "bili_video"
-}
 
 bilibili = Bilibili()
 
@@ -60,11 +54,12 @@ async def bilibili_task():
     b_since.value.update(since)
     await app.plugin_state.put(b_since)
 
+    dyn: Dynamic
     events = (
         Event(
-            event_map.get(dyn[2], f"bili_{dyn[2]}"),
+            dyn.type.to_event(),
             name,
-            {"text": dyn[0], "images": dyn[1]}
+            {"text": dyn.text, "images": dyn.photos, "link": dyn.link}
         )
         for name, dyn_set in valid_dyns.items()
         for dyn in dyn_set[1]
