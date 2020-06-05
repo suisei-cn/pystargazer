@@ -1,5 +1,7 @@
 FROM python:3.8.2-slim
 
+ARG TELEMETRY_RELEASE
+
 MAINTAINER LightQuantum
 
 WORKDIR /app
@@ -19,5 +21,7 @@ RUN mkdir /plugins
 ENV PYTHONUNBUFFERED=1
 
 ENV PLUGIN_DIR=/plugins
+
+ENV TELEMETRY_RELEASE=${TELEMETRY_RELEASE}
 
 CMD ["python", "-m", "pystargazer"]

@@ -5,6 +5,8 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      TELEMETRY_RELEASE: pystargazer-${{ github.sha }}
     steps:
       - uses: actions/checkout@master
       - name: Publish to Dockerhub
@@ -13,3 +15,13 @@ jobs:
           name: photonquantum/pystargazer
           username: ${{ secrets.PQ_DOCKER_USERNAME }}
           password: ${{ secrets.PQ_DOCKER_PASSWORD }}
+          buildargs: TELEMETRY_RELEASE
+      - name: Create a Sentry.io release
+        uses: tclindner/sentry-releases-action@v1.2.0
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: lightquantum
+          SENTRY_PROJECT: pystargazer
+        with:
+          tagName: ${{ env.TELEMETRY_RELEASE }}
+          environment: prod

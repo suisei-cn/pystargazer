@@ -16,10 +16,11 @@ builtin_plugins = strtobool(environ.get("ENABLE_BUILTIN_PLUGINS"), True)
 plugin_blacklist = [plugin.strip() for plugin in environ.get("PLUGIN_BLACKLIST", "").split(",")]
 plugin_dir = environ.get("PLUGIN_DIR", None)
 telemetry = environ.get("TELEMETRY", "")
+telemetry_release = environ.get("TELEMETRY_RELEASE", None)
 
 if telemetry:
     import sentry_sdk
-    sentry_sdk.init(telemetry)
+    sentry_sdk.init(telemetry, release=telemetry_release)
 
 if not debug:
     logging.basicConfig(level=logging.INFO)
