@@ -7,7 +7,6 @@ from pystargazer.app import app
 from pystargazer.models import Event
 from pystargazer.models import KVPair
 from .apis import LiveClient, LiveRoom, LiveStatus, get_room_id
-import logging
 
 http = AsyncClient()
 map_uid_client: Dict[int, LiveClient] = {}

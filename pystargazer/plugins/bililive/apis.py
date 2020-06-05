@@ -122,7 +122,7 @@ class LiveClient(BLiveClient):
         if not self._live:
             return
         self._live = False
-        if iscoroutinefunction(self.on_live):
+        if iscoroutinefunction(self.on_prepare):
             await self.on_prepare(self, command)
         elif callable(self.on_prepare):
             self.on_prepare(self, command)
