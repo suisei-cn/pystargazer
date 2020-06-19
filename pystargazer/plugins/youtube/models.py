@@ -85,7 +85,7 @@ class Video:
         try:
             item = data['items'][0]
         except IndexError:
-            logging.exception(f"Youtube data api malformed response: {data}")
+            logging.error(f"Youtube data api malformed response: {data}")
             return False
 
         if snippet := item.get("snippet"):
