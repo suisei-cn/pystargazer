@@ -20,7 +20,7 @@ jobs:
         uses: tclindner/sentry-releases-action@v1.2.0
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: lightquantum
+          SENTRY_ORG: suiseicn
           SENTRY_PROJECT: pystargazer
         with:
           tagName: ${{ env.TELEMETRY_RELEASE }}
