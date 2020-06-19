@@ -345,8 +345,7 @@ async def load_state():
     for channel, videos in channel_state.value.items():
         for _video in videos:
             video = Video.load(_video)
-            await video.fetch()
-            if not video.actual_start_time:
+            if await video.fetch() and not video.actual_start_time:
                 logging.debug(f"Load saved broadcast: {video}")
                 event_reminder = YoutubeEvent(type=video.type, event=YoutubeEventType.REMINDER,
                                               channel=channel, video=video)
