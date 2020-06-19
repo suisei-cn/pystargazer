@@ -91,7 +91,7 @@ async def on_live(client: LiveClient, command: dict):
     body = {
         "title": live_room.title,
         "link": f"https://live.bilibili.com/{client.room_id}",
-        "images": [live_room.cover]
+        "images": [cover] if (cover := live_room.cover) else []
     }
     event = Event("bili_live", vtuber.key, body)
     await app.send_event(event)
