@@ -132,13 +132,12 @@ class Bilibili:
         for raw_card in cards:
             if isinstance((rtn := parse_card(raw_card)), tuple):
                 dyn_id, dyn_entry = rtn
-                if dyn_id <= since_id:
-                    break
-                dyn_list.append(dyn_entry)
+                if dyn_id > since_id:
+                    dyn_list.append(dyn_entry)
             elif rtn:
                 dyn_id = rtn
 
-            if dyn_id == since_id:
+            if dyn_id <= since_id:
                 break
 
             counter += 1
