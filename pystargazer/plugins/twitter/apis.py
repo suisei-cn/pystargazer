@@ -7,6 +7,7 @@ from httpx import AsyncClient, HTTPError, Headers
 from httpcore import TimeoutException
 
 from .schemas import schema
+from .models import Tweet
 
 
 class Twitter:
@@ -44,11 +45,13 @@ class Twitter:
             return since_id, None
 
         tweet_list = []
-        for _, tweet in zip(range(5), r):
-            is_rt = "retweeted_status" in tweet.keys()
-            tweet_text = tweet["text"]
-            tweet_media = tweet["entities"].get("media", [])
+        for _, raw_tweet in zip(range(5), r):
+            is_rt = "retweeted_status" in raw_tweet.keys()
+            tweet_text = raw_tweet["text"]
+            tweet_media = raw_tweet["entities"].get("media", [])
             tweet_photos = [medium["media_url"] for medium in tweet_media if medium["type"] == "photo"]
-            tweet_list.append((tweet_text, tweet_photos, is_rt))
+            tweet_link = f"https://twitter.com/{raw_tweet['user']['screen_name']}/status/{raw_tweet['id']}"
+            tweet = Tweet(tweet_text, tweet_photos, tweet_link, is_rt)
+            tweet_list.append(tweet)
 
         return r[0]["id"], tweet_list

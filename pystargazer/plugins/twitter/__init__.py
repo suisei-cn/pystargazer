@@ -7,6 +7,7 @@ from pystargazer.app import app
 from pystargazer.models import Event, KVPair
 from .apis import Twitter
 from .schemas import schema
+from .models import Tweet
 
 twitter = Twitter(app.credentials.get("twitter"))
 
@@ -47,11 +48,12 @@ async def twitter_task():
     t_since.value.update(since)
     await app.plugin_state.put(t_since)
 
+    tweet: Tweet
     events = (
         Event(
-            "t_rt" if tweet[2] else "t_tweet",
+            "t_rt" if tweet.is_rt else "t_tweet",
             name,
-            {"text": tweet[0], "images": tweet[1]}
+            {"text": tweet.text, "images": tweet.photos, "link": tweet.link}
         )
         for name, tweet_set in valid_tweets.items()
         for tweet in tweet_set[1])
