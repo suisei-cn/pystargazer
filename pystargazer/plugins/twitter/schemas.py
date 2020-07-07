@@ -54,6 +54,17 @@ raw_schema = {
                     }
                 }
             },
+            "user": {
+                "type": "object",
+                "properties": {
+                    "screen_name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "screen_name"
+                ]
+            },
             "retweeted_status": {
                 "type": "object",
                 "properties": {}
