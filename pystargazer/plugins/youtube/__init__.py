@@ -95,7 +95,7 @@ async def send_youtube_event(ytb_event: YoutubeEvent):
         "title": video.title,
         "description": video.description,
         "link": video.link,
-        "images": [video.thumbnail] if ytb_event.event != YoutubeEventType.SCHEDULE else []
+        "images": [video.thumbnail] if ytb_event.event != YoutubeEventType.SCHEDULE and video.thumbnail else []
     }
     if scheduled_start_time_print:
         body["scheduled_start_time"] = scheduled_start_time_print
