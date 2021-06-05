@@ -12,7 +12,7 @@ from .models import Tweet
 
 class Twitter:
     def __init__(self, token: str):
-        self.client = AsyncClient()
+        self.client = AsyncClient(timeout=10)
         self.client.headers = Headers({
             "Accept": "application/json",
             "Authorization": f"Bearer {token}",

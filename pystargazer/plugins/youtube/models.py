@@ -14,7 +14,7 @@ from httpx import AsyncClient, NetworkError
 from pystargazer.app import app
 
 token_g: Iterator[str] = cycle(app.credentials.get("youtube"))
-http = AsyncClient()
+http = AsyncClient(timeout=10)
 
 
 class ResourceType(Enum):
