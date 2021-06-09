@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
         name='pystargazer',
-        version='0.2.0',
+        version='0.2.1',
         description='A flexible vtuber tracker.',
         author='LightQuantum',
         author_email='cy.n01@outlook.com',
@@ -24,7 +24,7 @@ setup(
             'aiohttp',
             'httpx',
             'starlette',
-            'uvicorn',
+            'uvicorn[standard]',
             'apscheduler',
             'feedparser',
             'python-dateutil',

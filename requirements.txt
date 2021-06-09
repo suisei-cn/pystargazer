@@ -2,7 +2,7 @@ uvloop
 aiohttp
 httpx
 starlette
-uvicorn
+uvicorn[standard]
 apscheduler
 feedparser
 python-dateutil
