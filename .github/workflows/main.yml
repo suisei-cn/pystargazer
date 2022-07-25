@@ -23,5 +23,5 @@ jobs:
           SENTRY_ORG: suiseicn
           SENTRY_PROJECT: pystargazer
         with:
-          tagName: ${{ env.TELEMETRY_RELEASE }}
+          version: ${{ env.TELEMETRY_RELEASE }}
           environment: prod
