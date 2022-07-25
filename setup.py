@@ -9,7 +9,7 @@ setup(
     author='LightQuantum',
     author_email='cy.n01@outlook.com',
     url='https://github.com/suisei-cn/pystargazer',
-    packages=find_namespace_packages(include=["pystargazer.*"]),
+    packages=find_namespace_packages(include=["pystargazer*"]),
     classifiers=[
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
