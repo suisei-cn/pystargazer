@@ -17,7 +17,7 @@ jobs:
           password: ${{ secrets.PQ_DOCKER_PASSWORD }}
           buildargs: TELEMETRY_RELEASE
       - name: Create a Sentry.io release
-        uses: tclindner/sentry-releases-action@v1.2.0
+        uses: getsentry/action-release@v1
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: suiseicn
