@@ -1,4 +1,4 @@
-FROM python:3.10.0-bullseye as builder
+FROM python:3.10-bullseye as builder
 
 RUN pip install --upgrade pip
 
@@ -12,7 +12,7 @@ COPY pystargazer ./pystargazer
 
 RUN pip install --user ".[files,mongo,telemetry]"
 
-FROM python:3.10.0-slim-bullseye
+FROM python:3.10-slim-bullseye
 
 ARG TELEMETRY_RELEASE
 
