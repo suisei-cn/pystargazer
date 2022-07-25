@@ -1,8 +1,8 @@
 FROM python:3.10-bullseye as builder
 
-RUN pip install --upgrade pip
+WORKDIR /build
 
-RUN mkdir /install
+RUN pip install --upgrade pip
 
 COPY LICENSE ./
 
