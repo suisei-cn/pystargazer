@@ -4,7 +4,7 @@ from setuptools import find_namespace_packages, setup
 
 setup(
     name='pystargazer',
-    version='0.2.2',
+    version='0.2.3',
     description='A flexible vtuber tracker.',
     author='LightQuantum',
     author_email='cy.n01@outlook.com',

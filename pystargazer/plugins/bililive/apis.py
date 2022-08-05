@@ -65,7 +65,7 @@ async def get_room_id(uid: int) -> Optional[int]:
     while retry:
         try:
             retry = False
-            r = await http.get(f"http://api.live.bilibili.com/bili/living_v2/{uid}")
+            r = await http.get(f"https://api.live.bilibili.com/bili/living_v2/{uid}")
             r.raise_for_status()
         except TimeoutException:
             retry = True
